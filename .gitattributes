@@ -1,0 +1,10 @@
+# Todo texto entra no repositório com LF, venha de Windows ou não.
+* text=auto eol=lf
+
+# Scripts do cmd do Windows precisam de CRLF.
+*.cmd text eol=crlf
+
+*.png binary
+*.ico binary
+*.db binary
+*.exe binary

@@ -1,0 +1,16 @@
+.git
+.github
+.claude
+node_modules
+dist
+data
+release
+electron/app
+docs
+*.db
+*.db-shm
+*.db-wal
+*.log
+.env
+.env.*
+!.env.example

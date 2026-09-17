@@ -1,0 +1,82 @@
+name: Release
+
+# Uma tag v1.2.3 gera o instalador do Windows (como RASCUNHO de release) e publica a imagem Docker no GitHub
+# Container Registry. Os apps instalados só enxergam a versão nova depois que você publica o rascunho.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  windows:
+    name: Instalador do Windows
+    runs-on: windows-latest
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: A tag bate com o package.json
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "A tag diz $tag e o package.json diz $pkg. Rode npm version antes de criar a tag."
+            exit 1
+          fi
+
+      # O electron-builder só monta; quem cria a release é o gh, de uma vez, com os três arquivos.
+      - name: Instalador
+        run: node electron/build.mjs && npx electron-builder --win nsis --publish never
+
+      - name: Rascunho da release
+        shell: bash
+        run: |
+          versao="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" --draft --title "tuesday $versao" --generate-notes \
+            "release/tuesday-Setup-$versao.exe" \
+            "release/tuesday-Setup-$versao.exe.blockmap" \
+            release/latest.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Imagem Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

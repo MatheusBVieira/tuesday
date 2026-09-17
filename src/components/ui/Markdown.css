@@ -1,0 +1,98 @@
+.markdown {
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown pre,
+.markdown blockquote,
+.markdown table {
+  margin: 0 0 10px;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 22px;
+}
+
+.markdown li + li {
+  margin-top: 2px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 14px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.markdown h1 {
+  font-size: 18px;
+}
+
+.markdown h2 {
+  font-size: 16px;
+}
+
+.markdown code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--grey-bg);
+  border: 1px solid var(--grid-line);
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.markdown pre {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--grey-bg);
+  border: 1px solid var(--grid-line);
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.markdown blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--layout-border);
+  color: var(--text-secondary);
+}
+
+.markdown table {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown th,
+.markdown td {
+  padding: 4px 10px;
+  border: 1px solid var(--layout-border);
+}
+
+.markdown input[type='checkbox'] {
+  margin-right: 6px;
+}
+
+.markdown hr {
+  border: 0;
+  border-top: 1px solid var(--layout-border);
+  margin: 12px 0;
+}

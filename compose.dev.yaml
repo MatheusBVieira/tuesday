@@ -1,0 +1,21 @@
+# PostgreSQL para desenvolver e testar o modo servidor (npm run db:up / npm run db:down).
+# Não é para produção: para publicar o tuesday, use o compose.yaml.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tuesday
+      POSTGRES_PASSWORD: tuesday
+      POSTGRES_DB: tuesday
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - postgres-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tuesday']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-dev:

@@ -1,0 +1,44 @@
+# Instalador do tuesday para Windows.
+#
+# A pasta empacotada é electron/app, montada por electron/build.mjs — nunca a raiz do projeto. É o que garante
+# que a pasta data/ com o seu banco e o .env fiquem de fora.
+
+appId: dev.tuesday.app
+productName: tuesday
+electronVersion: 44.3.0
+
+directories:
+  app: electron/app
+  output: release
+  buildResources: electron/build
+
+# O better-sqlite3 é nativo: recompilado para o Electron no empacotamento.
+npmRebuild: true
+# Sem asar: o Claude executa mcp.mjs e hook.mjs com o próprio tuesday.exe (ELECTRON_RUN_AS_NODE), e os módulos
+# precisam estar em arquivos comuns.
+asar: false
+
+# bin\tuesday-hook.cmd e bin\tuesday.cmd, ao lado do tuesday.exe.
+extraFiles:
+  - from: electron/bin
+    to: bin
+
+win:
+  target: nsis
+  icon: electron/build/icon.png
+
+nsis:
+  # Um clique, por usuário, sem pedir administrador.
+  oneClick: true
+  perMachine: false
+  # Desinstalar não apaga o banco em %APPDATA%\tuesday. Reinstalar devolve tudo.
+  deleteAppDataOnUninstall: false
+  shortcutName: tuesday
+  artifactName: tuesday-Setup-${version}.${ext}
+
+# Atualização automática: o app instalado confere o latest.yml dos Releases do GitHub.
+publish:
+  provider: github
+  owner: MatheusBVieira
+  repo: tuesday
+  releaseType: draft

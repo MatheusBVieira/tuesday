@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+release/
+electron/app/
+electron/build/
+docs/
+*.md
+*.cmd
+package-lock.json

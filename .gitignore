@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.vite/
+
+# O banco e tudo o que o app gera em data/: nenhuma tarefa entra no git.
+data/
+*.db
+*.db-shm
+*.db-wal
+.env
+*.log
+
+# App desktop: pasta montada por electron/build.mjs e os instaladores gerados.
+electron/app/
+release/
+
+# Arquivos temporários dos testes.
+scripts/.writer-*.mjs
+
+# Configurações pessoais do editor e do Claude.
+.claude/
+.vscode/
+
+.DS_Store
+Thumbs.db

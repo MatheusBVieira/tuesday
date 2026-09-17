@@ -1,0 +1,42 @@
+# tuesday num servidor, com PostgreSQL.
+#
+#   cp .env.example .env      # defina as duas senhas
+#   docker compose up -d
+#
+# Depois abra http://<servidor>:4010 e entre com a TUESDAY_PASSWORD (qualquer usuário).
+services:
+  tuesday:
+    image: ghcr.io/matheusbvieira/tuesday:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      - '${TUESDAY_PORT:-4010}:4010'
+    environment:
+      TUESDAY_DATABASE_URL: postgres://tuesday:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/tuesday
+      TUESDAY_PASSWORD: ${TUESDAY_PASSWORD:?defina TUESDAY_PASSWORD no .env}
+      # Atrás de um proxy com HTTPS (nginx, Caddy, Traefik), para o limite de tentativas usar o IP real:
+      # TUESDAY_TRUST_PROXY: '1'
+    # Pastas de código para os commits ligados aos itens e os TODOs: monte aqui e vincule os projetos a /repos/...
+    # volumes:
+    #   - /srv/codigo:/repos:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tuesday
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: tuesday
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tuesday']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres:
