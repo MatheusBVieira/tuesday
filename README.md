@@ -120,8 +120,10 @@ claude mcp add --transport http tuesday http://<servidor>:4010/mcp --header "Aut
 
 Algumas coisas a saber:
 
-- **HTTPS.** Fora da rede local, coloque um proxy com HTTPS na frente (Caddy, nginx, Traefik), defina
-  `TUESDAY_URL` com o endereço público e `TUESDAY_TRUST_PROXY=1`.
+- **Endereço.** Acessando direto pelo IP da máquina na rede, não precisa configurar nada: o servidor confia no
+  endereço por onde foi aberto. Com domínio ou proxy na frente, defina `TUESDAY_URL` com o endereço público.
+- **HTTPS.** Fora da rede local, coloque um proxy com HTTPS na frente (Caddy, nginx, Traefik) e defina
+  `TUESDAY_TRUST_PROXY=1`.
 - **Login com o Google** (opcional): defina `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`; o botão aparece sozinho
   na tela de entrada. Sem isso, é e-mail e senha — não há envio de e-mail, então não há verificação nem
   recuperação por e-mail: quem administra troca a senha de quem esqueceu.

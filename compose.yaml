@@ -13,8 +13,9 @@ services:
       - '${TUESDAY_PORT:-4010}:4010'
     environment:
       TUESDAY_DATABASE_URL: postgres://tuesday:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/tuesday
-      # Endereço público: os cookies de sessão e o login com o Google usam ele.
-      TUESDAY_URL: ${TUESDAY_URL:-http://localhost:4010}
+      # Só com domínio/proxy na frente (e para o login com o Google). Acessando direto pelo IP da máquina,
+      # pode deixar vazio: o servidor confia no endereço por onde foi aberto.
+      TUESDAY_URL: ${TUESDAY_URL:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # Atrás de um proxy com HTTPS (nginx, Caddy, Traefik), para o limite de tentativas usar o IP real:

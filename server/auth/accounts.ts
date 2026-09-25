@@ -50,10 +50,27 @@ export function authSettings(): AuthSettings {
   return { baseUrl: process.env.TUESDAY_URL?.trim() || null, google: !!google().google };
 }
 
-/** Endereços de onde o navegador pode falar com a API (o próprio servidor e o que estiver em TUESDAY_URL). */
-function trustedOrigins(): string[] {
-  const list = [process.env.TUESDAY_URL, ...(process.env.TUESDAY_TRUSTED_ORIGINS ?? '').split(',')];
-  return [...new Set(list.map((o) => o?.trim()).filter((o): o is string => !!o))];
+const hostOf = (url: string): string | null => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * De onde o navegador pode falar com a API: o que estiver em TUESDAY_URL/TUESDAY_TRUSTED_ORIGINS e, sempre, o
+ * próprio endereço pelo qual o servidor foi aberto — é o que faz funcionar direto pelo IP da máquina na rede,
+ * sem domínio nenhum. Pedido vindo de outro site tem Origin diferente do Host e continua recusado.
+ */
+function trustedOrigins(request?: Request): string[] {
+  const configured = [process.env.TUESDAY_URL, ...(process.env.TUESDAY_TRUSTED_ORIGINS ?? '').split(',')]
+    .map((origin) => origin?.trim())
+    .filter((origin): origin is string => !!origin);
+  const origin = request?.headers.get('origin');
+  const host = request?.headers.get('host');
+  const sameOrigin = origin && host && hostOf(origin) === host ? [origin] : [];
+  return [...new Set([...configured, ...sameOrigin])];
 }
 
 async function database(): Promise<unknown> {
@@ -85,7 +102,7 @@ export async function initAccounts(): Promise<AuthInstance> {
     secret: sessionSecret(),
     basePath: '/api/auth',
     baseURL: process.env.TUESDAY_URL?.trim() || undefined,
-    trustedOrigins: trustedOrigins(),
+    trustedOrigins,
     // Sem envio de e-mail: a conta já entra valendo e o convite é um link que a pessoa recebe por onde quiser.
     emailAndPassword: { enabled: true, requireEmailVerification: false, autoSignIn: true, minPasswordLength: 8 },
     socialProviders: google(),
