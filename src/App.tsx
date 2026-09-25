@@ -1,5 +1,6 @@
 import { FolderOpen, LayoutGrid, Plus, Unplug } from 'lucide-react';
 import { useEffect } from 'react';
+import { AuthPage } from './components/auth/AuthPage';
 import { BoardPage } from './components/board/BoardPage';
 import { ActivityDrawer } from './components/item/ActivityDrawer';
 import { ItemPanel } from './components/item/ItemPanel';
@@ -70,6 +71,7 @@ function ProjectEmpty() {
 
 export function App() {
   const ready = useStore((s) => s.ready);
+  const signedOut = useStore((s) => s.signedOut);
   const loadError = useStore((s) => s.loadError);
   const boards = useStore((s) => s.boards);
   const projectId = useStore((s) => s.projectId);
@@ -111,6 +113,8 @@ export function App() {
   }, [onBoardPage, board?.name, board]);
 
   if (loadError) return <ConnectionError message={loadError} />;
+  // Servidor com contas: entrar vem antes de tudo; o link de convite também abre esta tela.
+  if (signedOut || route.page === 'invite') return <AuthPage />;
 
   const showBoard = onBoardPage && board && board.id === route.boardId;
   const projectIsEmpty = ready && onBoardPage && route.boardId == null && !boards.some((b) => b.projectId === projectId);

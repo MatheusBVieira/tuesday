@@ -1,3 +1,5 @@
+import type { ProjectRole } from './roles';
+
 // Tipos compartilhados entre o servidor (API + MCP) e o cliente.
 import type { TodoTag } from './codetodos';
 
@@ -358,8 +360,20 @@ export interface AppInfo {
   database: { dialect: 'sqlite' | 'postgres'; label: string };
   /** como o Claude Code / Claude Desktop inicia o MCP (stdio) desta instalação */
   mcp: { command: string; args: string[]; env?: Record<string, string> };
-  /** o servidor pede senha */
-  auth: boolean;
+  /** o servidor tem contas: quem usa precisa entrar */
+  accounts: boolean;
+}
+
+/** Quem está usando o tuesday agora (só existe quando o servidor tem contas). */
+export interface Viewer {
+  userId: string;
+  name: string;
+  email: string;
+  /** dono da instalação: administra as contas */
+  master: boolean;
+  personId: number;
+  /** papel em cada projeto que a pessoa enxerga */
+  roles: Record<number, ProjectRole>;
 }
 
 export interface SetupStatus {
@@ -384,6 +398,7 @@ export interface Bootstrap {
   meId: number | null;
   claudeId: number | null;
   app: AppInfo;
+  viewer: Viewer | null;
 }
 
 export interface ChangeEvent {

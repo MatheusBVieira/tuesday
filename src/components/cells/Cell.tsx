@@ -3,6 +3,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import type { Column, Item } from '../../../shared/types';
 import { MAX_ITEM_NUMBER, formatItemRef, formatNumber } from '../../../shared/values';
 import { cx } from '../../lib/format';
+import { useCanInBoard } from '../../lib/permissions';
 import { actions, toast } from '../../store';
 import { Tooltip } from '../ui/Tooltip';
 import { CellInput } from './CellInput';
@@ -176,6 +177,19 @@ function AutoNumberCell({ item, column, variant = 'table' }: CellProps) {
 }
 
 export function Cell(props: CellProps) {
+  const editable = useCanInBoard('itens', props.item.boardId);
+  const cell = renderCell(props);
+  // display: contents — o invólucro some do layout e só bloqueia o clique.
+  return editable ? (
+    cell
+  ) : (
+    <div className="cell-readonly" title="Você tem acesso de leitura neste projeto">
+      {cell}
+    </div>
+  );
+}
+
+function renderCell(props: CellProps) {
   switch (props.column.type) {
     case 'status':
       return <StatusCell {...props} />;

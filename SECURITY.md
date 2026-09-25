@@ -6,10 +6,12 @@
   rodando pelo código. Não há conta, nuvem, servidor do projeto nem telemetria.
 - **Servidor local fechado para fora.** Rodando em `127.0.0.1`, o servidor recusa pedidos com `Host` ou `Origin`
   de outro endereço — um site aberto no navegador não consegue usar a API por trás de você (DNS rebinding e CSRF).
-- **Publicado na rede, com senha.** Com `HOST` fora do localhost, o tuesday não sobe sem `TUESDAY_PASSWORD`
-  (a não ser com `TUESDAY_ALLOW_NO_PASSWORD=1`, para quando um proxy já controla o acesso). A senha vale para a
-  interface (HTTP Basic) e para o MCP via HTTP (`Authorization: Bearer`), é comparada em tempo constante, e dez
-  tentativas erradas bloqueiam o IP por dez minutos. Use HTTPS na frente se o acesso sair da rede local.
+- **Publicado na rede, com contas.** Com `HOST` fora do localhost, cada pessoa entra com a própria conta
+  (Better Auth: e-mail e senha, senhas com hash, sessão em cookie `httpOnly`; opcionalmente Google). A primeira
+  conta criada administra a instalação. O acesso a cada projeto vem do papel da pessoa nele (dono, administrador,
+  membro ou leitor) e é conferido no servidor em **todo** pedido — inclusive no MCP via HTTP, onde o token é
+  pessoal (`Authorization: Bearer`), guardado como hash e revogável. `TUESDAY_NO_AUTH=1` abre o servidor sem
+  contas, para quando um proxy na frente já controla o acesso. Use HTTPS na frente se o acesso sair da rede local.
 - **Git e TODOs só leem.** O tuesday roda `git log` e `git grep` e lê os arquivos das pastas vinculadas. Nunca
   escreve nelas.
 - **Configurar o Claude mexe em arquivos seus**, e só quando você pede: `~/.claude.json` (pelo comando

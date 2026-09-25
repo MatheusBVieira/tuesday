@@ -9,6 +9,7 @@ import { positionBetween } from '../../../shared/values';
 import { cx, formatDateTime } from '../../lib/format';
 import { actions, useStore } from '../../store';
 import { Avatar } from '../ui/Avatar';
+import { useCanInBoard } from '../../lib/permissions';
 import { Checkbox } from '../ui/Checkbox';
 import { EditableText } from '../ui/EditableText';
 import { Tooltip } from '../ui/Tooltip';
@@ -32,7 +33,7 @@ function DoneBy({ subitem }: { subitem: Subitem }) {
   );
 }
 
-function SubitemRow({ itemId, subitem }: { itemId: number; subitem: Subitem }) {
+function SubitemRow({ itemId, subitem, canEdit }: { itemId: number; subitem: Subitem; canEdit: boolean }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: subitem.id });
   return (
     <li
@@ -40,43 +41,51 @@ function SubitemRow({ itemId, subitem }: { itemId: number; subitem: Subitem }) {
       className={cx('subitem', subitem.done && 'is-done', isDragging && 'is-dragging')}
       style={{ transform: CSS.Translate.toString(transform), transition }}
     >
-      <button
-        ref={setActivatorNodeRef}
-        type="button"
-        className="subitem__handle"
-        aria-label="Arrastar para reordenar"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical size={14} />
-      </button>
+      {canEdit ? (
+        <button
+          ref={setActivatorNodeRef}
+          type="button"
+          className="subitem__handle"
+          aria-label="Arrastar para reordenar"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={14} />
+        </button>
+      ) : (
+        <span className="subitem__handle" />
+      )}
       <Checkbox
         checked={subitem.done}
+        disabled={!canEdit}
         onChange={(done) => void actions.setSubitemDone(itemId, subitem.id, done)}
         label={subitem.done ? `Reabrir "${subitem.name}"` : `Marcar "${subitem.name}" como feito`}
       />
       <EditableText
         value={subitem.name}
         onSave={(name) => void actions.renameSubitem(itemId, subitem.id, name)}
+        trigger={canEdit ? 'click' : 'none'}
         className="subitem__name"
         inputClassName="subitem__input"
       />
       <DoneBy subitem={subitem} />
-      <Tooltip content="Excluir subitem">
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm subitem__delete"
-          aria-label="Excluir subitem"
-          onClick={() => void actions.deleteSubitem(itemId, subitem.id)}
-        >
-          <X size={14} />
-        </button>
-      </Tooltip>
+      {canEdit && (
+        <Tooltip content="Excluir subitem">
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm subitem__delete"
+            aria-label="Excluir subitem"
+            onClick={() => void actions.deleteSubitem(itemId, subitem.id)}
+          >
+            <X size={14} />
+          </button>
+        </Tooltip>
+      )}
     </li>
   );
 }
 
-function AddSubitem({ itemId, startOpen }: { itemId: number; startOpen: boolean }) {
+function AddSubitem({ itemId, startOpen, canEdit }: { itemId: number; startOpen: boolean; canEdit: boolean }) {
   const [open, setOpen] = useState(startOpen);
   const [draft, setDraft] = useState('');
   // Passos digitados em sequência (ou colados) são enviados em fila, na ordem.
@@ -92,6 +101,7 @@ function AddSubitem({ itemId, startOpen }: { itemId: number; startOpen: boolean 
     });
   };
 
+  if (!canEdit) return null;
   if (!open) {
     return (
       <button type="button" className="subitem-add" onClick={() => setOpen(true)}>
@@ -137,6 +147,7 @@ function AddSubitem({ itemId, startOpen }: { itemId: number; startOpen: boolean 
 
 export function SubitemsTab({ item, reference }: { item: Item; reference: string | null }) {
   const subitems = item.subitems;
+  const canEdit = useCanInBoard('itens', item.boardId);
   const { done, total, complete } = subitemProgress(subitems);
   const percent = total ? Math.round((done / total) * 100) : 0;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
@@ -189,13 +200,13 @@ export function SubitemsTab({ item, reference }: { item: Item; reference: string
           <SortableContext items={subitems.map((s) => s.id)} strategy={verticalListSortingStrategy}>
             <ul className="subitem-list">
               {subitems.map((subitem) => (
-                <SubitemRow key={subitem.id} itemId={item.id} subitem={subitem} />
+                <SubitemRow key={subitem.id} itemId={item.id} subitem={subitem} canEdit={canEdit} />
               ))}
             </ul>
           </SortableContext>
         </DndContext>
       )}
-      <AddSubitem key={item.id} itemId={item.id} startOpen={total === 0} />
+      <AddSubitem key={item.id} itemId={item.id} startOpen={total === 0} canEdit={canEdit} />
     </div>
   );
 }

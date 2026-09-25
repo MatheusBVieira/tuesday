@@ -1,4 +1,4 @@
-import { Info, Sparkles, Unplug, Users } from 'lucide-react';
+import { Info, Sparkles, Unplug, UserCog, Users } from 'lucide-react';
 import { cx } from '../../lib/format';
 import { navigate } from '../../router';
 import { actions, useStore } from '../../store';
@@ -11,6 +11,8 @@ import { Logo } from './Logo';
 export function TopBar() {
   const connected = useStore((s) => s.connected);
   const me = useStore((s) => s.people.find((p) => p.id === s.meId));
+  const viewer = useStore((s) => s.viewer);
+  const projectId = useStore((s) => s.projectId);
   const app = useStore((s) => s.app);
   const firstBoard = useStore((s) => s.boards[0]?.id ?? null);
   const menu = usePopover({ placement: 'bottom-end' });
@@ -64,7 +66,27 @@ export function TopBar() {
       </div>
       <PopoverPanel popover={menu}>
         <Menu>
-          <MenuTitle>{me?.name ?? 'Você'}</MenuTitle>
+          <MenuTitle>{viewer?.name ?? me?.name ?? 'Você'}</MenuTitle>
+          {viewer && (
+            <MenuItem
+              icon={<UserCog size={16} />}
+              label={viewer.master ? 'Minha conta e as contas' : 'Minha conta'}
+              onClick={() => {
+                menu.setOpen(false);
+                actions.openModal({ kind: 'account' });
+              }}
+            />
+          )}
+          {viewer && projectId != null && (
+            <MenuItem
+              icon={<Users size={16} />}
+              label="Quem participa do projeto"
+              onClick={() => {
+                menu.setOpen(false);
+                actions.openModal({ kind: 'members', projectId });
+              }}
+            />
+          )}
           <MenuItem
             icon={<Users size={16} />}
             label="Pessoas e perfil"

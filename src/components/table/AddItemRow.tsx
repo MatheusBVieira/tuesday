@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import type { Group } from '../../../shared/types';
+import { useCanInBoard } from '../../lib/permissions';
 import { actions } from '../../store';
 import { Checkbox } from '../ui/Checkbox';
 
 export function AddItemRow({ group }: { group: Group }) {
   const [value, setValue] = useState('');
+  const canEdit = useCanInBoard('itens');
+  if (!canEdit) return null;
 
   const submit = async () => {
     const name = value.trim();

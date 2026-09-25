@@ -164,4 +164,46 @@ CREATE INDEX idx_code_todos_item ON code_todos(item_id);
 `;
 
 /** Migrações posteriores ao schema acima: versão → SQL. */
-export const POSTGRES_MIGRATIONS: [version: number, sql: string][] = [];
+export const POSTGRES_MIGRATIONS: [version: number, sql: string][] = [
+  // v7 — contas: membros, convites e tokens por projeto (as tabelas do Better Auth são criadas por ele)
+  [
+    7,
+    `
+    ALTER TABLE people ADD COLUMN user_id TEXT;
+    CREATE UNIQUE INDEX idx_people_user ON people(user_id);
+
+    CREATE TABLE project_members (
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      user_id    TEXT NOT NULL,
+      role       TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT ${NOW},
+      PRIMARY KEY (project_id, user_id)
+    );
+    CREATE INDEX idx_project_members_user ON project_members(user_id);
+
+    CREATE TABLE project_invites (
+      id         ${ID},
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      role       TEXT NOT NULL,
+      created_by TEXT,
+      expires_at TEXT,
+      max_uses   INTEGER,
+      uses       INTEGER NOT NULL DEFAULT 0,
+      revoked_at TEXT,
+      created_at TEXT NOT NULL DEFAULT ${NOW}
+    );
+    CREATE INDEX idx_project_invites_project ON project_invites(project_id, revoked_at);
+
+    CREATE TABLE api_tokens (
+      id           ${ID},
+      user_id      TEXT NOT NULL,
+      name         TEXT NOT NULL,
+      token_hash   TEXT NOT NULL UNIQUE,
+      created_at   TEXT NOT NULL DEFAULT ${NOW},
+      last_used_at TEXT
+    );
+    CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
+    `,
+  ],
+];

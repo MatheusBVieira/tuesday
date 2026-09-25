@@ -8,11 +8,15 @@ import { listGroups } from './groups';
 import { listAssignedItems } from './items';
 import { getMeId, listPeople } from './people';
 
-export function getMyWork(personId: number | null = getMeId()): MyWork {
+export function getMyWork(personId: number | null = getMeId(), visibleProjects: Set<number> | null = null): MyWork {
   if (personId == null) return { personId: 0, boards: [], items: [] };
   if (!listPeople().some((p) => p.id === personId)) throw notFound('Pessoa não encontrada.');
-  const items = listAssignedItems(personId);
   const summaries = new Map(listBoards().map((b) => [b.id, b]));
+  const withinReach = (boardId: number) => {
+    const summary = summaries.get(boardId);
+    return !!summary && (!visibleProjects || visibleProjects.has(summary.projectId));
+  };
+  const items = listAssignedItems(personId).filter((item) => withinReach(item.boardId));
   const boards: MyWorkBoard[] = [];
   for (const id of new Set(items.map((i) => i.boardId))) {
     const summary = summaries.get(id);

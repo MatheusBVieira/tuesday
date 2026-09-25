@@ -2,6 +2,21 @@ import { Router, type Request } from 'express';
 import { z } from 'zod';
 import type { AppInfo, Bootstrap, ColumnSettings, ColumnType } from '../../shared/types';
 import { COLUMN_TYPES } from '../../shared/values';
+import type { Permission } from '../../shared/roles';
+import { requireMaster, viewerOf } from '../auth/session';
+import {
+  assertPermission,
+  claimProject,
+  projectOfBoard,
+  projectOfColumn,
+  projectOfGroup,
+  projectOfItem,
+  projectOfSubitem,
+  projectOfUpdate,
+  projectsOfItems,
+  rolesOf,
+  visibleProjectIds,
+} from '../services/access';
 import { badRequest, type Actor } from '../services/common';
 import { createBoard, deleteBoard, getBoard, listBoards, updateBoard } from '../services/boards';
 import { createGroup, deleteGroup, updateGroup } from '../services/groups';
@@ -29,9 +44,22 @@ import { TODO_TAGS } from '../../shared/codetodos';
 
 const actorOf = (req: Request): Actor => ({
   source: 'user',
-  personId: getMeId(),
+  personId: viewerOf(req)?.personId ?? getMeId(),
   clientId: req.get('x-client-id') ?? null,
 });
+
+/**
+ * Recusa o pedido quando o papel da pessoa no projeto não alcança a permissão. Rodando sem contas (app instalado),
+ * nada disto barra — é o computador de uma pessoa só.
+ */
+const allow = (req: Request, projectId: number | null, permission: Permission) => assertPermission(viewerOf(req), projectId, permission);
+const allowBoard = (req: Request, boardId: number, permission: Permission) => allow(req, projectOfBoard(boardId), permission);
+const allowItem = (req: Request, itemId: number, permission: Permission) => allow(req, projectOfItem(itemId), permission);
+const allowItems = (req: Request, itemIds: number[], permission: Permission) => {
+  for (const projectId of projectsOfItems(itemIds)) allow(req, projectId, permission);
+};
+/** Projetos que a pessoa enxerga — null quando não há contas. */
+const visible = (req: Request) => visibleProjectIds(viewerOf(req));
 
 function idOf(req: Request, key = 'id'): number {
   const id = Number(req.params[key]);
@@ -92,14 +120,26 @@ const boardSettings = z.object({
 export function createApiRouter(app: AppInfo): Router {
   const r = Router();
 
-  r.get('/bootstrap', (_req, res) => {
+  r.get('/bootstrap', (req, res) => {
+    const viewer = viewerOf(req);
+    const allowed = visible(req);
     const payload: Bootstrap = {
-      projects: listProjects(),
-      boards: listBoards(),
+      projects: listProjects().filter((p) => !allowed || allowed.has(p.id)),
+      boards: listBoards().filter((b) => !allowed || allowed.has(b.projectId)),
       people: listPeople(),
-      meId: getMeId(),
+      meId: viewer?.personId ?? getMeId(),
       claudeId: getClaudeId(),
       app,
+      viewer: viewer
+        ? {
+            userId: viewer.userId,
+            name: viewer.name,
+            email: viewer.email,
+            master: viewer.master,
+            personId: viewer.personId,
+            roles: rolesOf(viewer),
+          }
+        : null,
     };
     res.json(payload);
   });
@@ -107,12 +147,15 @@ export function createApiRouter(app: AppInfo): Router {
   // ── Meu trabalho ───────────────────────────────────────────
   r.get('/my-work', (req, res) => {
     const person = Number(req.query.person);
-    res.json(getMyWork(Number.isInteger(person) && person > 0 ? person : getMeId()));
+    const viewer = viewerOf(req);
+    const chosen = Number.isInteger(person) && person > 0 ? person : (viewer?.personId ?? getMeId());
+    res.json(getMyWork(chosen, visible(req)));
   });
 
   // ── Projetos ───────────────────────────────────────────────
-  r.get('/projects', (_req, res) => {
-    res.json(listProjects());
+  r.get('/projects', (req, res) => {
+    const allowed = visible(req);
+    res.json(listProjects().filter((p) => !allowed || allowed.has(p.id)));
   });
 
   r.post('/projects', (req, res) => {
@@ -127,6 +170,7 @@ export function createApiRouter(app: AppInfo): Router {
       req,
     );
     const result = createProject(input, actorOf(req));
+    claimProject(result.project.id, viewerOf(req));
     if (result.project.folder) void syncProjectGit(result.project.id).catch(() => undefined);
     res.status(201).json(result);
   });
@@ -141,22 +185,26 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allow(req, idOf(req), 'projeto');
     const project = updateProject(idOf(req), patch, actorOf(req));
     if (patch.folder !== undefined && project.folder) void syncProjectGit(project.id).catch(() => undefined);
     res.json(project);
   });
 
   r.delete('/projects/:id', (req, res) => {
+    allow(req, idOf(req), 'projeto');
     deleteProject(idOf(req), actorOf(req));
     res.status(204).end();
   });
 
   r.post('/projects/:id/git/sync', async (req, res) => {
+    allow(req, idOf(req), 'estrutura');
     res.json(await syncProjectGit(idOf(req), { force: true }));
   });
 
   // TODO/FIXME do código
   r.get('/projects/:id/code-todos', async (req, res) => {
+    allow(req, idOf(req), 'estrutura');
     res.json(await scanCodeTodos(idOf(req)));
   });
 
@@ -171,6 +219,7 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allow(req, idOf(req), 'estrutura');
     const { scan: _scan, ...result } = await importCodeTodos(idOf(req), input, actorOf(req));
     res.json(result);
   });
@@ -203,8 +252,9 @@ export function createApiRouter(app: AppInfo): Router {
   });
 
   // ── Quadros ────────────────────────────────────────────────
-  r.get('/boards', (_req, res) => {
-    res.json(listBoards());
+  r.get('/boards', (req, res) => {
+    const allowed = visible(req);
+    res.json(listBoards().filter((b) => !allowed || allowed.has(b.projectId)));
   });
 
   r.post('/boards', (req, res) => {
@@ -218,10 +268,13 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    if (viewerOf(req) && !input.projectId) throw badRequest('Escolha o projeto do quadro.');
+    if (input.projectId) allow(req, input.projectId, 'estrutura');
     res.status(201).json(createBoard(input, actorOf(req)));
   });
 
   r.get('/boards/:id', (req, res) => {
+    allowBoard(req, idOf(req), 'ler');
     res.json(getBoard(idOf(req)));
   });
 
@@ -237,10 +290,13 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allowBoard(req, idOf(req), 'estrutura');
+    if (patch.projectId) allow(req, patch.projectId, 'estrutura');
     res.json(updateBoard(idOf(req), patch, actorOf(req)));
   });
 
   r.delete('/boards/:id', (req, res) => {
+    allowBoard(req, idOf(req), 'estrutura');
     deleteBoard(idOf(req), actorOf(req));
     res.status(204).end();
   });
@@ -248,12 +304,14 @@ export function createApiRouter(app: AppInfo): Router {
   r.get('/boards/:id/activity', (req, res) => {
     const limit = Number(req.query.limit) || 100;
     const before = Number(req.query.before) || undefined;
+    allowBoard(req, idOf(req), 'ler');
     res.json(listActivity({ boardId: idOf(req), limit, beforeId: before }));
   });
 
   // ── Grupos ─────────────────────────────────────────────────
   r.post('/boards/:id/groups', (req, res) => {
     const input = parse(z.object({ name: z.string().optional(), color: z.string().optional(), position: position.optional() }), req);
+    allowBoard(req, idOf(req), 'estrutura');
     res.status(201).json(createGroup(idOf(req), input, actorOf(req)));
   });
 
@@ -267,10 +325,12 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allow(req, projectOfGroup(idOf(req)), 'estrutura');
     res.json(updateGroup(idOf(req), patch, actorOf(req)));
   });
 
   r.delete('/groups/:id', (req, res) => {
+    allow(req, projectOfGroup(idOf(req)), 'estrutura');
     deleteGroup(idOf(req), actorOf(req));
     res.status(204).end();
   });
@@ -288,6 +348,7 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allowBoard(req, idOf(req), 'estrutura');
     res
       .status(201)
       .json(
@@ -309,10 +370,12 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allow(req, projectOfColumn(idOf(req)), 'estrutura');
     res.json(updateColumn(idOf(req), { ...patch, settings: patch.settings as ColumnSettings | undefined }, actorOf(req)));
   });
 
   r.delete('/columns/:id', (req, res) => {
+    allow(req, projectOfColumn(idOf(req)), 'estrutura');
     deleteColumn(idOf(req), actorOf(req));
     res.status(204).end();
   });
@@ -330,10 +393,12 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allowBoard(req, idOf(req), 'itens');
     res.status(201).json(createItem(idOf(req), input, actorOf(req)));
   });
 
   r.get('/items/:id', (req, res) => {
+    allowItem(req, idOf(req), 'ler');
     res.json(getItemDetails(idOf(req)));
   });
 
@@ -348,31 +413,38 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allowItem(req, idOf(req), 'itens');
     res.json(updateItem(idOf(req), patch, actorOf(req)));
   });
 
   r.put('/items/:id/values', (req, res) => {
     const { values } = parse(z.object({ values: z.record(z.string(), z.unknown()) }), req);
+    allowItem(req, idOf(req), 'itens');
     res.json(setItemValues(idOf(req), values, actorOf(req)));
   });
 
   r.post('/items/delete', (req, res) => {
     const input = parse(z.object({ ids }), req);
+    allowItems(req, input.ids, 'itens');
     res.json({ ids: deleteItems(input.ids, actorOf(req)) });
   });
 
   r.post('/items/restore', (req, res) => {
     const input = parse(z.object({ ids }), req);
+    allowItems(req, input.ids, 'itens');
     res.json({ ids: restoreItems(input.ids, actorOf(req)) });
   });
 
   r.post('/items/duplicate', (req, res) => {
     const input = parse(z.object({ ids }), req);
+    allowItems(req, input.ids, 'itens');
     res.status(201).json(duplicateItems(input.ids, actorOf(req)));
   });
 
   r.post('/items/move', (req, res) => {
     const input = parse(z.object({ ids, groupId: z.number().int().positive() }), req);
+    allowItems(req, input.ids, 'itens');
+    allow(req, projectOfGroup(input.groupId), 'itens');
     res.json(moveItems(input.ids, input.groupId, actorOf(req)));
   });
 
@@ -388,30 +460,36 @@ export function createApiRouter(app: AppInfo): Router {
       }),
       req,
     );
+    allowItem(req, idOf(req), 'itens');
     res.status(201).json(addSubitems(idOf(req), input.subitems, { position: input.position }, actorOf(req)));
   });
 
   r.patch('/subitems/:id', (req, res) => {
     const patch = parse(z.object({ name: z.string().optional(), done: z.boolean().optional(), position: z.number().optional() }), req);
+    allow(req, projectOfSubitem(idOf(req)), 'itens');
     res.json(updateSubitem(idOf(req), patch, actorOf(req)));
   });
 
   r.delete('/subitems/:id', (req, res) => {
+    allow(req, projectOfSubitem(idOf(req)), 'itens');
     res.json(deleteSubitem(idOf(req), actorOf(req)));
   });
 
   // ── Atualizações ───────────────────────────────────────────
   r.post('/items/:id/updates', (req, res) => {
     const { body } = parse(z.object({ body: z.string() }), req);
+    allowItem(req, idOf(req), 'comentar');
     res.status(201).json(createUpdate(idOf(req), body, actorOf(req)));
   });
 
   r.patch('/updates/:id', (req, res) => {
     const { body } = parse(z.object({ body: z.string() }), req);
+    allow(req, projectOfUpdate(idOf(req)), 'comentar');
     res.json(editUpdate(idOf(req), body, actorOf(req)));
   });
 
   r.delete('/updates/:id', (req, res) => {
+    allow(req, projectOfUpdate(idOf(req)), 'comentar');
     deleteUpdate(idOf(req), actorOf(req));
     res.status(204).end();
   });
@@ -435,11 +513,13 @@ export function createApiRouter(app: AppInfo): Router {
   });
 
   r.delete('/people/:id', (req, res) => {
+    if (viewerOf(req)) requireMaster(req);
     deletePerson(idOf(req), actorOf(req));
     res.status(204).end();
   });
 
   r.put('/me', (req, res) => {
+    if (viewerOf(req)) throw badRequest('Com contas, cada pessoa já entra com a própria.');
     const { personId } = parse(z.object({ personId: z.number().int().positive() }), req);
     setMe(personId, actorOf(req));
     res.status(204).end();

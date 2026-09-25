@@ -1,9 +1,9 @@
 # tuesday num servidor, com PostgreSQL.
 #
-#   cp .env.example .env      # defina as duas senhas
+#   cp .env.example .env      # senha do banco e endereço do servidor
 #   docker compose up -d
 #
-# Depois abra http://<servidor>:4010 e entre com a TUESDAY_PASSWORD (qualquer usuário).
+# Depois abra http://<servidor>:4010 e crie a primeira conta — ela administra a instalação.
 services:
   tuesday:
     image: ghcr.io/matheusbvieira/tuesday:latest
@@ -13,7 +13,10 @@ services:
       - '${TUESDAY_PORT:-4010}:4010'
     environment:
       TUESDAY_DATABASE_URL: postgres://tuesday:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/tuesday
-      TUESDAY_PASSWORD: ${TUESDAY_PASSWORD:?defina TUESDAY_PASSWORD no .env}
+      # Endereço público: os cookies de sessão e o login com o Google usam ele.
+      TUESDAY_URL: ${TUESDAY_URL:-http://localhost:4010}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # Atrás de um proxy com HTTPS (nginx, Caddy, Traefik), para o limite de tentativas usar o IP real:
       # TUESDAY_TRUST_PROXY: '1'
     # Pastas de código para os commits ligados aos itens e os TODOs: monte aqui e vincule os projetos a /repos/...

@@ -46,8 +46,8 @@ PostgreSQL.
 | **Para quem** | você e o seu Claude | um time, no navegador |
 | **Banco** | SQLite, um arquivo | PostgreSQL |
 | **Instalação** | instalador do Windows, ou pelo código | Docker Compose, ou pelo código |
-| **Acesso** | só este computador | pela rede, com senha |
-| **Claude** | MCP local e hooks, configurados por um botão | MCP via HTTP, com a senha |
+| **Acesso** | só este computador | pela rede, cada pessoa com a sua conta |
+| **Claude** | MCP local e hooks, configurados por um botão | MCP via HTTP, com um token por pessoa |
 
 ## Instalar no Windows
 
@@ -89,35 +89,54 @@ Com [Docker](https://docs.docker.com/get-docker/), numa máquina da rede (ou num
 ```bash
 git clone https://github.com/MatheusBVieira/tuesday.git
 cd tuesday
-cp .env.example .env     # defina TUESDAY_PASSWORD e POSTGRES_PASSWORD
+cp .env.example .env     # defina POSTGRES_PASSWORD e o endereço do servidor
 docker compose up -d
 ```
 
-Abra `http://<servidor>:4010`. O navegador pede a senha na primeira visita — qualquer usuário, com a
-`TUESDAY_PASSWORD`. O compose sobe o tuesday e um PostgreSQL 17 com volume próprio.
+Abra `http://<servidor>:4010` e **crie a primeira conta**: ela administra a instalação (vê as contas, troca
+senhas, promove e remove). O compose sobe o tuesday e um PostgreSQL 17 com volume próprio.
 
-**Conectar o Claude de cada pessoa** — o comando também aparece em **Claude**, no topo do app:
+### Contas, convites e papéis
+
+Quem tem conta cria os próprios projetos e chama quem quiser: em **Quem participa**, gere um link de convite e
+mande pela ferramenta que preferir — quem abrir cria a conta (ou entra na dela) e já entra no projeto.
+
+| Papel | O que pode fazer |
+|---|---|
+| **Dono** | tudo, inclusive excluir o projeto e passar a posse |
+| **Administrador** | quadros, grupos, colunas, membros e convites |
+| **Membro** | cria e edita itens, subitens e atualizações |
+| **Leitor** | lê o quadro e escreve atualizações |
+
+Cada pessoa só enxerga os projetos em que participa — na tela e também pelo MCP. O servidor confere o papel em
+todo pedido, não só na interface.
+
+**Conectar o Claude de cada pessoa** — gere um token em **Minha conta** e use no cabeçalho. O que o Claude fizer
+com ele fica registrado no nome da pessoa, com as permissões dela:
 
 ```bash
-claude mcp add --transport http tuesday http://<servidor>:4010/mcp --header "Authorization: Bearer <senha>"
+claude mcp add --transport http tuesday http://<servidor>:4010/mcp --header "Authorization: Bearer <seu-token>"
 ```
 
 Algumas coisas a saber:
 
-- **HTTPS.** Fora da rede local, coloque um proxy com HTTPS na frente (Caddy, nginx, Traefik) e defina
-  `TUESDAY_TRUST_PROXY=1`, para o limite de tentativas de senha enxergar o IP real.
+- **HTTPS.** Fora da rede local, coloque um proxy com HTTPS na frente (Caddy, nginx, Traefik), defina
+  `TUESDAY_URL` com o endereço público e `TUESDAY_TRUST_PROXY=1`.
+- **Login com o Google** (opcional): defina `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`; o botão aparece sozinho
+  na tela de entrada. Sem isso, é e-mail e senha — não há envio de e-mail, então não há verificação nem
+  recuperação por e-mail: quem administra troca a senha de quem esqueceu.
 - **Pastas de código.** Git e TODOs leem pastas do servidor. Monte as pastas no contêiner (veja o comentário em
   `compose.yaml`) e vincule os projetos a elas.
 - **Backup.** `docker compose exec postgres pg_dump -U tuesday tuesday > tuesday.sql`
 - **Atualizar.** `git pull && docker compose up -d --build` — as migrações do banco rodam sozinhas.
-- **Sem senha.** O servidor se recusa a abrir para a rede sem `TUESDAY_PASSWORD`. Se um proxy na frente já
-  controla o acesso, use `TUESDAY_ALLOW_NO_PASSWORD=1`.
+- **Sem contas.** Se um proxy na frente já controla quem entra, `TUESDAY_NO_AUTH=1` deixa o servidor aberto,
+  sem login.
 
 **Sem Docker**, com um PostgreSQL seu: defina as variáveis num `.env` na pasta do tuesday e rode pelo código.
 
 ```bash
 TUESDAY_DATABASE_URL=postgres://tuesday:senha@localhost:5432/tuesday
-TUESDAY_PASSWORD=uma-senha-forte
+TUESDAY_URL=https://tuesday.seudominio.com
 HOST=0.0.0.0
 ```
 
@@ -256,7 +275,8 @@ Pelo código, sem `npm link`: `node bin/tuesday.mjs <comando>`.
 
 - **No computador, tudo fica nele.** Um arquivo SQLite, sem conta, sem nuvem e sem telemetria. O servidor local
   só escuta em `127.0.0.1` e recusa pedidos de outras origens.
-- **No servidor, com senha.** Sem `TUESDAY_PASSWORD`, o tuesday não abre para a rede. Tentativas erradas demais
+- **No servidor, com contas.** Cada pessoa entra com a sua; o papel no projeto é conferido em todo pedido.
+  Tentativas erradas demais
   bloqueiam por alguns minutos.
 - **O Claude só mexe no que você pede**, e tudo o que ele faz fica no registro de atividades, marcado como Claude.
 - **Git e TODOs só leem.** O tuesday lê o histórico e os arquivos das pastas vinculadas; não escreve nelas.
@@ -270,13 +290,15 @@ Detalhes, e como reportar uma falha, em [SECURITY.md](SECURITY.md).
 | Variável | Padrão | Para quê |
 | --- | --- | --- |
 | `TUESDAY_DATABASE_URL` | — | PostgreSQL (`postgres://…`). Sem ela, SQLite |
-| `TUESDAY_PASSWORD` | — | Senha de acesso — obrigatória fora de `127.0.0.1` |
+| `TUESDAY_URL` | — | Endereço público do servidor (cookies de sessão e login com o Google) |
+| `TUESDAY_AUTH_SECRET` | gerado | Segredo dos cookies de sessão (fica no banco quando não definido) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | — | Liga o login com o Google |
 | `HOST` | `127.0.0.1` | Interface de rede; `0.0.0.0` publica na rede |
 | `TUESDAY_PORT` | `4010` | Porta |
 | `TUESDAY_DATA_DIR` | `./data` | Pasta do SQLite e do estado dos hooks |
 | `TUESDAY_DB` | `<dados>/tuesday.db` | Caminho do arquivo SQLite |
 | `TUESDAY_TRUST_PROXY` | — | `1` atrás de um proxy (nginx, Caddy, Traefik) |
-| `TUESDAY_ALLOW_NO_PASSWORD` | — | `1` para abrir na rede sem senha (quando um proxy já controla o acesso) |
+| `TUESDAY_NO_AUTH` | — | `1` para abrir na rede sem contas (quando um proxy já controla o acesso) |
 | `TUESDAY_EDITOR` | `vscode` | Editor dos links de código: `vscode`, `vscode-insiders`, `cursor` ou `windsurf` |
 | `TUESDAY_PROJECT` | — | Fixa o projeto do MCP (nome ou id), ignorando a pasta |
 | `TUESDAY_NO_SEED` | — | `1` para não criar o projeto de exemplo |
@@ -338,7 +360,7 @@ server/
   api/routes.ts      API REST
   mcp/               ferramentas MCP, detecção do projeto, stdio e HTTP
   hooks.ts           hooks do Claude Code
-  auth.ts            senha no modo servidor
+  auth/              contas e sessões (Better Auth), no modo servidor
   index.ts           servidor HTTP e tempo real (SSE)
 shared/              tipos e regras usadas no cliente e no servidor
 src/                 interface React

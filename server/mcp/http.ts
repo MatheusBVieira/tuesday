@@ -7,7 +7,7 @@ import { createMcpServer } from './tools';
 export function mountMcpHttp(app: Express): void {
   app.post('/mcp', async (req: Request, res: Response) => {
     const project = typeof req.query.project === 'string' ? req.query.project : null;
-    const server = createMcpServer({ transport: 'http', project });
+    const server = createMcpServer({ transport: 'http', project, viewer: req.viewer ?? null });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => {
       void transport.close();

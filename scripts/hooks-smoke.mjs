@@ -230,7 +230,8 @@ check(
 );
 
 // ── App instalado vindo da 1.0.0: o banco de %APPDATA%\tuesday passa para %USERPROFILE%\.tuesday ──
-if (process.platform === 'win32') {
+// (só faz sentido no SQLite: é sobre onde fica o arquivo do banco)
+if (process.platform === 'win32' && !process.env.TUESDAY_DATABASE_URL) {
   const home = path.join(dir, 'home');
   const appData = path.join(dir, 'appdata');
   const legacy = path.join(appData, 'tuesday', 'tuesday.db');

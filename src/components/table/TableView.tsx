@@ -17,6 +17,7 @@ import { Plus, SearchX } from 'lucide-react';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Item } from '../../../shared/types';
 import { positionBetween } from '../../../shared/values';
+import { useCanInBoard } from '../../lib/permissions';
 import { filterItems, groupItems, hasActiveFilters, sortItems } from '../../lib/view';
 import { actions, useStore } from '../../store';
 import { GroupSection } from './GroupSection';
@@ -52,6 +53,7 @@ export function TableView() {
   );
   const itemsById = useMemo(() => new Map(board.items.map((i) => [i.id, i])), [board.items]);
   const filtering = hasActiveFilters(filters);
+  const canEditStructure = useCanInBoard('estrutura');
   const visibleCount = [...grouped.values()].reduce((n, items) => n + items.length, 0);
 
   const style = useMemo(() => {
@@ -169,7 +171,7 @@ export function TableView() {
           </div>
         )}
 
-        {!filtering && (
+        {!filtering && canEditStructure && (
           <button type="button" className="add-group-btn" onClick={() => void actions.createGroup('bottom')}>
             <Plus size={16} /> Adicionar novo grupo
           </button>

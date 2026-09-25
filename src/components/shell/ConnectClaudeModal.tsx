@@ -100,11 +100,14 @@ const quoteArg = (arg: string) => (/[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\
 /** Publicado na rede: o Claude de cada pessoa conecta pelo MCP via HTTP. */
 function ServerConnect({ app }: { app: AppInfo }) {
   const url = `${window.location.origin}/mcp`;
-  const header = app.auth ? ' --header "Authorization: Bearer SUA_SENHA"' : '';
+  const header = app.accounts ? ' --header "Authorization: Bearer SEU_TOKEN"' : '';
   const desktop = JSON.stringify(
     {
       mcpServers: {
-        tuesday: { command: 'npx', args: ['-y', 'mcp-remote', url, ...(app.auth ? ['--header', 'Authorization: Bearer SUA_SENHA'] : [])] },
+        tuesday: {
+          command: 'npx',
+          args: ['-y', 'mcp-remote', url, ...(app.accounts ? ['--header', 'Authorization: Bearer SEU_TOKEN'] : [])],
+        },
       },
     },
     null,
@@ -117,9 +120,10 @@ function ServerConnect({ app }: { app: AppInfo }) {
       </h3>
       <p>
         Cada pessoa conecta o próprio Claude pelo endereço deste servidor.{' '}
-        {app.auth ? (
+        {app.accounts ? (
           <>
-            Troque <code>SUA_SENHA</code> pela senha de acesso do tuesday.
+            Troque <code>SEU_TOKEN</code> pelo token que você gera em <strong>Minha conta</strong> — o que o Claude fizer fica registrado no
+            seu nome, com as suas permissões.
           </>
         ) : null}
       </p>

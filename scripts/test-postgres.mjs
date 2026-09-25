@@ -78,6 +78,10 @@ try {
   const hooks = await run('scripts/hooks-smoke.mjs', { TUESDAY_DATABASE_URL: await freshDatabase('hooks') });
   check('test:hooks no PostgreSQL', hooks.code === 0);
 
+  console.log('\n── Teste de fumaça das contas no PostgreSQL ──');
+  const auth = await run('scripts/auth-smoke.mjs', { TUESDAY_DATABASE_URL: await freshDatabase('auth') });
+  check('test:auth no PostgreSQL', auth.code === 0);
+
   console.log('\n── Gravações simultâneas de vários processos ──');
   const url = await freshDatabase('concorrencia');
   // Dentro de scripts/ para achar o tsx do projeto.

@@ -16,8 +16,10 @@ import type {
   Project,
   Subitem,
   TableSettings,
+  Viewer,
 } from '../shared/types';
 import { positionBetween } from '../shared/values';
+import { authApi } from './api/auth';
 import { ApiError, api, errorText } from './api/client';
 import { getRoute, navigate } from './router';
 
@@ -62,11 +64,18 @@ export type ModalSpec =
   | { kind: 'people' }
   | { kind: 'connect-claude' }
   | { kind: 'project'; projectId?: number }
+  | { kind: 'members'; projectId: number }
+  | { kind: 'account' }
+  | { kind: 'users' }
   | { kind: 'import-todos'; projectId: number; boardId?: number | null };
 
 interface State {
   ready: boolean;
   loadError: string | null;
+  /** servidor com contas e ninguém entrou ainda: mostra a tela de entrada */
+  signedOut: boolean;
+  /** quem está usando (null no app instalado, que não tem contas) */
+  viewer: Viewer | null;
   connected: boolean;
   projects: Project[];
   /** projeto selecionado na barra lateral */
@@ -142,6 +151,8 @@ function rememberProject(id: number | null): void {
 export const useStore = create<State>(() => ({
   ready: false,
   loadError: null,
+  signedOut: false,
+  viewer: null,
   connected: true,
   projects: [],
   projectId: null,
@@ -252,6 +263,8 @@ export const actions = {
       try {
         const boot = await api.bootstrap();
         set({
+          signedOut: false,
+          viewer: boot.viewer,
           projects: boot.projects,
           projectId: pickProject(boot.projects, Number(storage.get(PROJECT_KEY)) || null),
           boards: boot.boards,
@@ -264,6 +277,11 @@ export const actions = {
         });
         return;
       } catch (error) {
+        // Servidor com contas e ninguém entrou: é a tela de entrada, não um erro.
+        if (error instanceof ApiError && error.status === 401) {
+          set({ signedOut: true, viewer: null, ready: false, loadError: null });
+          return;
+        }
         // No `npm run dev` o Vite sobe antes da API: tenta de novo por alguns segundos antes de desistir.
         const retriable = !(error instanceof ApiError) || error.status >= 500;
         if (!retriable || attempt >= 12) {
@@ -356,6 +374,22 @@ export const actions = {
   },
 
   // ── Interface ──────────────────────────────────────────────
+  /** Depois de entrar ou sair: recarrega tudo com a nova sessão. */
+  async signIn(email: string, password: string) {
+    await authApi.signIn(email, password);
+    await actions.init();
+  },
+
+  async signUp(name: string, email: string, password: string) {
+    await authApi.signUp(name, email, password);
+    await actions.init();
+  },
+
+  async signOut() {
+    await authApi.signOut().catch(() => undefined);
+    set({ signedOut: true, viewer: null, ready: false, board: null, projects: [], boards: [], modal: null });
+  },
+
   openModal(modal: ModalSpec) {
     set({ modal });
   },

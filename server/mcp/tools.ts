@@ -5,17 +5,40 @@ import { TODO_TAGS } from '../../shared/codetodos';
 import { LABEL_COLORS, resolveColor } from '../../shared/colors';
 import { WORK_BUCKETS, workBucket, type WorkBucket } from '../../shared/mywork';
 import { COLUMN_TYPES, MAX_ITEM_NUMBER, fold, formatItemRef, isItemDone, statusLabelOf, todayIso } from '../../shared/values';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import type { Permission } from '../../shared/roles';
+import { assertPermission, claimProject, projectOfBoard, roleInProject, visibleProjectIds, type Viewer } from '../services/access';
 import { tx, type Actor } from '../services/common';
-import { createBoard, getBoard, listBoards, requireBoard, resolveBoard, updateBoard } from '../services/boards';
+import {
+  createBoard as createBoardRaw,
+  getBoard as getBoardRaw,
+  listBoards as listBoardsRaw,
+  requireBoard as requireBoardRaw,
+  resolveBoard as resolveBoardRaw,
+  updateBoard,
+} from '../services/boards';
 import { createGroup, listGroups, resolveGroup, updateGroup } from '../services/groups';
 import { createColumn, listColumns, resolveColumn, updateColumn } from '../services/columns';
-import { createItem, deleteItems, getItemDetails, resolveItem, restoreItems, setItemValues, updateItem } from '../services/items';
+import {
+  createItem,
+  deleteItems,
+  getItemDetails,
+  resolveItem as resolveItemRaw,
+  restoreItems,
+  setItemValues,
+  updateItem,
+} from '../services/items';
 import { createUpdate } from '../services/updates';
 import { addSubitems, deleteSubitem, listSubitems, resolveSubitem, updateSubitem } from '../services/subitems';
 import { subitemProgress } from '../../shared/subitems';
 import { createPerson, getClaudeId, getMeId, listPeople, resolvePerson } from '../services/people';
-import { getMyWork } from '../services/mywork';
-import { createProject, listProjects, resolveProject, updateProject } from '../services/projects';
+import { getMyWork as getMyWorkRaw } from '../services/mywork';
+import {
+  createProject as createProjectRaw,
+  listProjects as listProjectsRaw,
+  resolveProject as resolveProjectRaw,
+  updateProject,
+} from '../services/projects';
 import { listActivity } from '../services/activity';
 import { syncProjectGit } from '../services/git';
 import { importCodeTodos, refreshCodeTodos, scanCodeTodos } from '../services/codetodos';
@@ -98,7 +121,12 @@ interface ToolMeta {
   description: string;
   readOnly?: boolean;
   destructive?: boolean;
+  /** o que a ferramenta exige no projeto (padrão: ler quando só lê, itens quando escreve) */
+  permission?: Permission;
 }
+
+/** Permissão da ferramenta em execução, para as checagens feitas lá dentro. */
+const running = new AsyncLocalStorage<Permission>();
 
 // Antes de responder, lê commits novos da pasta do projeto atual (no máximo a cada 10 s por projeto).
 const lastAutoSync = new Map<number, number>();
@@ -121,6 +149,8 @@ export interface McpServerOptions {
   transport: 'stdio' | 'http';
   /** projeto fixo desta conexão (ex.: ?project= na URL) */
   project?: string | null;
+  /** de quem é o token desta conexão (servidor com contas); null no app instalado */
+  viewer?: Viewer | null;
 }
 
 export function createMcpServer(options: McpServerOptions = { transport: 'stdio' }): McpServer {
@@ -132,7 +162,52 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   const server = new McpServer({ name: 'tuesday', title: 'tuesday', version: VERSION }, { instructions: instructionsFor(scopes.guess()) });
   mcp = server;
 
-  const actor = (): Actor => ({ source: 'claude', personId: getClaudeId(), clientId: null });
+  // Com contas, o que o Claude faz fica registrado no nome de quem é o token.
+  const viewer = options.viewer ?? null;
+  const actor = (): Actor => ({ source: 'claude', personId: viewer?.personId ?? getClaudeId(), clientId: null });
+
+  // Toda ferramenta chega ao que vai mexer por um destes resolvedores: é aqui que o papel no projeto é checado.
+  const ensureProject = (projectId: number | null) => assertPermission(viewer, projectId, running.getStore() ?? 'ler');
+  const allowed = () => visibleProjectIds(viewer);
+  const resolveProject = (ref: Ref) => {
+    const project = resolveProjectRaw(ref);
+    ensureProject(project.id);
+    return project;
+  };
+  const createProject: typeof createProjectRaw = (input, who) => {
+    const result = createProjectRaw(input, who);
+    claimProject(result.project.id, viewer);
+    return result;
+  };
+  const createBoard: typeof createBoardRaw = (input, who) => {
+    ensureProject(input.projectId ?? null);
+    return createBoardRaw(input, who);
+  };
+  const checkedRow = <T extends { project_id: number | null }>(board: T): T => {
+    ensureProject(board.project_id);
+    return board;
+  };
+  const resolveBoard: typeof resolveBoardRaw = (...args) => checkedRow(resolveBoardRaw(...args));
+  const requireBoard: typeof requireBoardRaw = (...args) => checkedRow(requireBoardRaw(...args));
+  const getBoard: typeof getBoardRaw = (...args) => {
+    const board = getBoardRaw(...args);
+    ensureProject(board.projectId);
+    return board;
+  };
+  const resolveItem: typeof resolveItemRaw = (...args) => {
+    const row = resolveItemRaw(...args);
+    ensureProject(projectOfBoard(row.board_id));
+    return row;
+  };
+  const listProjects: typeof listProjectsRaw = () => {
+    const visible = allowed();
+    return listProjectsRaw().filter((p) => !visible || visible.has(p.id));
+  };
+  const listBoards: typeof listBoardsRaw = () => {
+    const visible = allowed();
+    return listBoardsRaw().filter((b) => !visible || visible.has(b.projectId));
+  };
+  const getMyWork: typeof getMyWorkRaw = (personId) => getMyWorkRaw(personId, allowed());
 
   function tool<Shape extends z.ZodRawShape>(
     name: string,
@@ -142,9 +217,11 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   ) {
     const callback = async (args: z.infer<z.ZodObject<Shape>>) => {
       try {
-        const scope = await scopes.resolve();
+        const resolved = await scopes.resolve();
+        // Projeto da conexão que a pessoa não participa é o mesmo que projeto nenhum.
+        const scope = viewer && resolved.project && !roleInProject(viewer, resolved.project.id) ? { ...resolved, project: null } : resolved;
         await autoSyncGit(scope);
-        const result = await handler(args, scope);
+        const result = await running.run(meta.permission ?? (meta.readOnly ? 'ler' : 'itens'), () => handler(args, scope));
         const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
@@ -287,6 +364,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'update_project',
     {
+      permission: 'projeto',
       title: 'Editar projeto',
       description:
         'Renomeia, muda a cor ou vincula/desvincula a pasta local de um projeto (folder: "." = pasta atual; null = desvincular).',
@@ -524,6 +602,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'sync_git',
     {
+      permission: 'estrutura',
       title: 'Sincronizar commits',
       description:
         'Lê o histórico Git da pasta do projeto e liga os commits que citam itens (ex.: TUE-012); "fixes TUE-012" move o item para concluído. É automático — use depois de commitar para ver o resultado na hora.',
@@ -729,6 +808,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'add_update',
     {
+      permission: 'comentar',
       title: 'Postar atualização',
       description:
         'Posta uma atualização (comentário) num item, assinada pelo Claude. Aceita Markdown. Use para registrar progresso, decisões e resumos.',
@@ -852,6 +932,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'find_code_todos',
     {
+      permission: 'estrutura',
       title: 'TODOs do código',
       description:
         'Procura TODO, FIXME, HACK e XXX nos comentários do código da pasta do projeto e diz quais já viraram itens e quais saíram do código. Use antes de import_code_todos.',
@@ -892,6 +973,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'import_code_todos',
     {
+      permission: 'estrutura',
       title: 'Importar TODOs do código',
       description:
         'Cria itens a partir das marcações TODO/FIXME/HACK/XXX do código (padrão: todas as novas). Cada item ganha a coluna "Código" com link que abre o arquivo na linha no VS Code, e uma atualização com o trecho do código. Não duplica o que já foi importado. complete_removed conclui os itens cuja marcação saiu do código.',
@@ -945,7 +1027,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
 
   tool(
     'update_group',
-    { title: 'Editar grupo', description: 'Renomeia, muda a cor, recolhe/expande ou reposiciona um grupo.' },
+    { permission: 'estrutura', title: 'Editar grupo', description: 'Renomeia, muda a cor, recolhe/expande ou reposiciona um grupo.' },
     {
       board: optionalBoard,
       group: groupRef,
@@ -965,6 +1047,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'create_board',
     {
+      permission: 'estrutura',
       title: 'Criar quadro',
       description:
         'Cria um quadro no projeto atual (ou no projeto informado). Modelos: "software" (Sprint atual/Backlog/Concluído com Status, Prioridade, Tipo, Prazo e ID), "default" (A fazer/Concluído) e "empty".',
@@ -994,7 +1077,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
 
   tool(
     'update_board',
-    { title: 'Editar quadro', description: 'Renomeia um quadro, altera a descrição ou move para outro projeto.' },
+    { permission: 'estrutura', title: 'Editar quadro', description: 'Renomeia um quadro, altera a descrição ou move para outro projeto.' },
     {
       board: boardRef,
       name: z.string().min(1).optional(),
@@ -1012,6 +1095,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'create_column',
     {
+      permission: 'estrutura',
       title: 'Criar coluna',
       description: `Adiciona uma coluna a um quadro. Tipos: ${COLUMN_TYPES.join(', ')}.`,
     },
@@ -1053,6 +1137,7 @@ export function createMcpServer(options: McpServerOptions = { transport: 'stdio'
   tool(
     'update_column',
     {
+      permission: 'estrutura',
       title: 'Editar coluna',
       description:
         'Renomeia uma coluna e/ou altera etiquetas de status: cria as que não existem, renomeia (rename_to), recolore ou remove (remove: true; só se nenhum item a usa). Na coluna de ID (auto_number): prefixo, dígitos e próximo número.',

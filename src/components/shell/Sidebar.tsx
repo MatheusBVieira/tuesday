@@ -13,6 +13,7 @@ import {
   Sparkles,
   Table2,
   Trash,
+  Users,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { BoardSummary } from '../../../shared/types';
@@ -28,6 +29,7 @@ import { ProjectBadge } from './ProjectModal';
 
 function ProjectSwitcher() {
   const projects = useStore((s) => s.projects);
+  const accounts = useStore((s) => !!s.viewer);
   const projectId = useStore((s) => s.projectId);
   const current = projects.find((p) => p.id === projectId);
   const popover = usePopover({ placement: 'bottom-start', matchWidth: true });
@@ -106,6 +108,16 @@ function ProjectSwitcher() {
             actions.openModal({ kind: 'project' });
           }}
         />
+        {current && accounts && (
+          <MenuItem
+            icon={<Users size={16} />}
+            label="Quem participa"
+            onClick={() => {
+              popover.setOpen(false);
+              actions.openModal({ kind: 'members', projectId: current.id });
+            }}
+          />
+        )}
         {current && (
           <MenuItem
             icon={<Settings2 size={16} />}

@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Person } from '../../../shared/types';
 import { cx } from '../../lib/format';
 import { cardColumnIdsOf, laneColumnOf } from '../../lib/kanban';
+import { useCanInBoard } from '../../lib/permissions';
 import { activeFilterCount, filterItems, hasActiveFilters, isFilterable } from '../../lib/view';
 import { navigate, type ViewKind } from '../../router';
 import { actions, useStore } from '../../store';
@@ -50,6 +51,8 @@ async function createNewItem(view: ViewKind) {
 
 function NewItemButton({ view }: { view: ViewKind }) {
   const menu = usePopover({ placement: 'bottom-start' });
+  const canEdit = useCanInBoard('itens');
+  if (!canEdit) return null;
   return (
     <div className="split-btn">
       <button type="button" className="btn btn--primary btn--sm split-btn__main" onClick={() => void createNewItem(view)}>

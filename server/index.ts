@@ -5,7 +5,9 @@ import type { AppInfo } from '../shared/types';
 import { ValidationError } from '../shared/values';
 import { DB_DIALECT, DB_LABEL, ROOT_DIR, getDb, watchExternalChanges } from './db/connection';
 import { createApiRouter } from './api/routes';
-import { requirePassword } from './auth';
+import { createTeamRouter } from './api/team';
+import { initAccounts } from './auth/accounts';
+import { requireViewer, withViewer } from './auth/session';
 import { notifyChange, onChange } from './events';
 import { RUNTIME, mcpLauncher } from './runtime';
 import { HttpError } from './services/common';
@@ -23,15 +25,13 @@ const version =
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 /** local: só este computador acessa · server: publicado na rede (Docker, servidor da empresa) */
 const MODE = LOCAL_HOSTS.has(HOST) ? 'local' : 'server';
-const PASSWORD = process.env.TUESDAY_PASSWORD ?? '';
 
-if (MODE === 'server' && !PASSWORD && process.env.TUESDAY_ALLOW_NO_PASSWORD !== '1') {
-  console.error(
-    `\n  O tuesday ia escutar em ${HOST}, aberto para a rede, sem senha.\n` +
-      '  Defina TUESDAY_PASSWORD — ou TUESDAY_ALLOW_NO_PASSWORD=1 se um proxy na frente já controla o acesso.\n',
-  );
-  process.exit(1);
-}
+// Publicado na rede, cada pessoa entra com a própria conta. TUESDAY_NO_AUTH=1 deixa o servidor aberto, para quem
+// já controla o acesso por outro meio (um proxy com autenticação na frente).
+const OPEN = process.env.TUESDAY_NO_AUTH === '1' || process.env.TUESDAY_ALLOW_NO_PASSWORD === '1';
+const ACCOUNTS = MODE === 'server' && !OPEN;
+
+if (process.env.TUESDAY_PASSWORD) console.warn('  TUESDAY_PASSWORD não é mais usada: agora cada pessoa entra com a própria conta.');
 
 getDb();
 purgeDeletedItems();
@@ -44,7 +44,7 @@ const appInfo: AppInfo = {
   runtime: RUNTIME,
   database: { dialect: DB_DIALECT, label: MODE === 'server' ? DB_DIALECT : DB_LABEL },
   mcp: mcpLauncher(),
-  auth: !!PASSWORD,
+  accounts: ACCOUNTS,
 };
 
 const app = express();
@@ -74,9 +74,17 @@ if (MODE === 'local') {
   });
 }
 
-if (PASSWORD) app.use(requirePassword(PASSWORD));
-
-app.use(express.json({ limit: '5mb' }));
+// As contas ficam em /api/auth (Better Auth) e precisam do corpo do pedido cru: vêm antes do express.json.
+if (ACCOUNTS) {
+  const auth = await initAccounts();
+  const { toNodeHandler } = await import('better-auth/node');
+  app.all('/api/auth/*splat', toNodeHandler(auth));
+  app.use(express.json({ limit: '5mb' }));
+  app.use(withViewer(auth));
+  app.use(['/api', '/mcp'], requireViewer());
+} else {
+  app.use(express.json({ limit: '5mb' }));
+}
 
 // ── Tempo real (Server-Sent Events) ──────────────────────────
 const clients = new Set<Response>();
@@ -106,6 +114,7 @@ onChange((event) => {
 watchExternalChanges(() => notifyChange({ scope: 'external', boardId: null, clientId: null }));
 
 // ── Rotas ────────────────────────────────────────────────────
+if (ACCOUNTS) app.use('/api', createTeamRouter());
 app.use('/api', createApiRouter(appInfo));
 mountMcpHttp(app);
 app.use('/api', (_req, res) => {
@@ -143,7 +152,7 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`  banco: ${DB_LABEL}`);
   console.log(`  MCP (HTTP): ${url}/mcp`);
   if (MODE === 'server')
-    console.log(PASSWORD ? '  acesso: com senha (TUESDAY_PASSWORD)' : '  acesso: SEM senha (TUESDAY_ALLOW_NO_PASSWORD=1)');
+    console.log(ACCOUNTS ? '  acesso: com contas (cada pessoa entra com a sua)' : '  acesso: ABERTO (TUESDAY_NO_AUTH=1)');
   console.log('');
 });
 

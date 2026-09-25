@@ -15,6 +15,7 @@ import type { Column, ColumnSettings } from '../../../shared/types';
 import { COLUMN_TYPE_LABELS, formatItemRef, formatNumber } from '../../../shared/values';
 import { domOnly } from '../../lib/dnd';
 import { cx } from '../../lib/format';
+import { useCanInBoard } from '../../lib/permissions';
 import { filterItems, isFilterable } from '../../lib/view';
 import { actions, useStore } from '../../store';
 import { FilterOptionList, clearColumnFilter, useColumnFilter } from '../board/FilterOptions';
@@ -194,6 +195,7 @@ function IdColumnSettings({ column, onDone }: { column: Column; onDone: () => vo
 function ColumnMenu({ column, onRename, onClose }: { column: Column; onRename: () => void; onClose: () => void }) {
   const [view, setView] = useState<'main' | 'labels' | 'settings' | 'add'>('main');
   const hidden = useStore((s) => s.board?.settings.table?.hiddenColumnIds ?? NO_IDS);
+  const canEdit = useCanInBoard('estrutura');
   if (view === 'labels') return <LabelEditor column={column} onDone={onClose} />;
   if (view === 'settings')
     return column.type === 'auto_number' ? (
@@ -217,14 +219,16 @@ function ColumnMenu({ column, onRename, onClose }: { column: Column; onRename: (
   return (
     <Menu>
       <MenuTitle>{COLUMN_TYPE_LABELS[column.type]}</MenuTitle>
-      {column.type === 'status' && <MenuItem icon={<Pencil size={16} />} label="Editar etiquetas" onClick={() => setView('labels')} />}
-      {column.type === 'auto_number' && (
+      {canEdit && column.type === 'status' && (
+        <MenuItem icon={<Pencil size={16} />} label="Editar etiquetas" onClick={() => setView('labels')} />
+      )}
+      {canEdit && column.type === 'auto_number' && (
         <MenuItem icon={<Settings2 size={16} />} label="Prefixo e numeração" onClick={() => setView('settings')} />
       )}
-      {column.type === 'number' && (
+      {canEdit && column.type === 'number' && (
         <MenuItem icon={<Settings2 size={16} />} label="Configurações da coluna" onClick={() => setView('settings')} />
       )}
-      <MenuItem icon={<Type size={16} />} label="Renomear" onClick={onRename} />
+      {canEdit && <MenuItem icon={<Type size={16} />} label="Renomear" onClick={onRename} />}
       <MenuItem
         icon={<ArrowUp size={16} />}
         label="Ordenar crescente"
@@ -240,27 +244,31 @@ function ColumnMenu({ column, onRename, onClose }: { column: Column; onRename: (
         label="Ocultar coluna"
         onClick={run(() => actions.updateTableSettings({ hiddenColumnIds: [...hidden, column.id] }))}
       />
-      <MenuItem
-        icon={<Plus size={16} />}
-        label="Adicionar coluna à direita"
-        end={<ChevronRight size={14} />}
-        onClick={() => setView('add')}
-      />
-      <MenuDivider />
-      <MenuItem
-        icon={<Trash size={16} />}
-        label="Excluir coluna"
-        danger
-        onClick={run(() =>
-          actions.confirm({
-            title: 'Excluir coluna?',
-            message: `A coluna "${column.title}" e todos os valores dela serão excluídos permanentemente.`,
-            confirmLabel: 'Excluir coluna',
-            danger: true,
-            onConfirm: () => actions.deleteColumn(column.id),
-          }),
-        )}
-      />
+      {canEdit && (
+        <MenuItem
+          icon={<Plus size={16} />}
+          label="Adicionar coluna à direita"
+          end={<ChevronRight size={14} />}
+          onClick={() => setView('add')}
+        />
+      )}
+      {canEdit && <MenuDivider />}
+      {canEdit && (
+        <MenuItem
+          icon={<Trash size={16} />}
+          label="Excluir coluna"
+          danger
+          onClick={run(() =>
+            actions.confirm({
+              title: 'Excluir coluna?',
+              message: `A coluna "${column.title}" e todos os valores dela serão excluídos permanentemente.`,
+              confirmLabel: 'Excluir coluna',
+              danger: true,
+              onConfirm: () => actions.deleteColumn(column.id),
+            }),
+          )}
+        />
+      )}
     </Menu>
   );
 }
@@ -412,6 +420,8 @@ function ColumnHeaders({ columns }: { columns: Column[] }) {
 
 function AddColumnCell({ lastColumnId }: { lastColumnId: number | null }) {
   const popover = usePopover({ placement: 'bottom-end' });
+  const canEdit = useCanInBoard('estrutura');
+  if (!canEdit) return <div className="hcell hcell--add" />;
   return (
     <div className="hcell hcell--add">
       <Tooltip content="Adicionar coluna">

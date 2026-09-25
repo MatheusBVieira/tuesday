@@ -9,7 +9,9 @@ import { ColorPalette } from '../ui/ColorPalette';
 import { EditableText } from '../ui/EditableText';
 import { Modal } from '../ui/Modal';
 import { PopoverPanel, usePopover } from '../ui/Popover';
+import { AccountModal } from './AccountModal';
 import { ConnectClaudeModal } from './ConnectClaudeModal';
+import { MembersModal } from './MembersModal';
 import { ImportTodosModal } from './ImportTodosModal';
 import { IdFormatFields, parseItemNumber, type IdFormatDraft } from './IdFormatFields';
 import { ProjectModal } from './ProjectModal';
@@ -258,5 +260,10 @@ export function ModalHost() {
       return <ProjectModal key={modal.projectId ?? 'new'} projectId={modal.projectId} onClose={close} />;
     case 'import-todos':
       return <ImportTodosModal projectId={modal.projectId} boardId={modal.boardId} onClose={close} />;
+    case 'members':
+      return <MembersModal projectId={modal.projectId} onClose={close} />;
+    case 'account':
+    case 'users':
+      return <AccountModal onClose={close} />;
   }
 }

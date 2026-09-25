@@ -1,6 +1,6 @@
 {
   "name": "tuesday",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Gestão de tarefas open source no estilo monday.com, feita para trabalhar junto com o Claude: tabela, Kanban, subitens, Git e servidor MCP. Local com SQLite ou em servidor com PostgreSQL.",
   "license": "MIT",
   "author": "Matheus Bruggemann Vieira",
@@ -37,7 +37,7 @@
     "mcp": "node bin/tuesday-mcp.mjs",
     "setup": "node bin/tuesday.mjs setup",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json",
-    "test": "npm run test:mcp && npm run test:hooks",
+    "test": "npm run test:mcp && npm run test:hooks && npm run test:auth",
     "test:mcp": "node scripts/mcp-smoke.mjs",
     "test:hooks": "node scripts/hooks-smoke.mjs",
     "test:postgres": "node scripts/test-postgres.mjs",
@@ -48,7 +48,8 @@
     "desktop:icone": "node electron/icone.mjs",
     "desktop:montar": "node electron/build.mjs",
     "desktop:testar": "node electron/build.mjs && electron-builder --win dir",
-    "desktop:instalador": "node electron/build.mjs && electron-builder --win nsis"
+    "desktop:instalador": "node electron/build.mjs && electron-builder --win nsis",
+    "test:auth": "node scripts/auth-smoke.mjs"
   },
   "engines": {
     "node": ">=22"
@@ -61,6 +62,7 @@
     "@fontsource/figtree": "^5.3.0",
     "@fontsource/poppins": "^5.3.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "better-auth": "^1.7.6",
     "better-sqlite3": "^13.0.3",
     "dompurify": "^3.4.15",
     "electron-updater": "^6.8.9",

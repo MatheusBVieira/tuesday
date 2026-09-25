@@ -72,6 +72,28 @@ export function createPerson(
   return getPerson(id)!;
 }
 
+/**
+ * A pessoa de uma conta. Liga à pessoa que já existe com o mesmo e-mail (quadro importado, histórico antigo);
+ * se não houver nenhuma livre, cria uma. É o que mantém as atribuições e o registro de atividades da pessoa.
+ */
+export function ensurePersonForUser(user: { id: string; name: string; email: string }): number {
+  const email = user.email.trim();
+  const linked = db().prepare('SELECT id FROM people WHERE user_id = ?').get(user.id) as { id: number } | undefined;
+  if (linked) return linked.id;
+  const byEmail = db()
+    .prepare('SELECT id FROM people WHERE user_id IS NULL AND is_agent = 0 AND email IS NOT NULL AND lower(email) = lower(?)')
+    .get(email) as { id: number } | undefined;
+  const id = byEmail?.id ?? createPerson({ name: user.name.trim() || email, email }, { source: 'user', personId: null }).id;
+  db().prepare('UPDATE people SET user_id = ? WHERE id = ?').run(user.id, id);
+  return id;
+}
+
+/** A pessoa ligada a uma conta, se já existir. */
+export function personIdOfUser(userId: string): number | null {
+  const row = db().prepare('SELECT id FROM people WHERE user_id = ?').get(userId) as { id: number } | undefined;
+  return row?.id ?? null;
+}
+
 export function updatePerson(id: number, patch: { name?: string; color?: string | null; email?: string | null }, actor: Actor): Person {
   const current = getPerson(id);
   if (!current) throw notFound('Pessoa não encontrada.');
