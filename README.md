@@ -140,8 +140,9 @@ Algumas coisas a saber:
   socket do Docker, e quem manda nesse socket manda no servidor: ligue só se confia em quem tem acesso à máquina.
   Preferindo não expor o socket, o mesmo efeito sai de uma linha no cron do servidor:
   `0 4 * * * cd /srv/tuesday && docker compose pull -q && docker compose up -d`.
-- **Ficar numa major.** A imagem sai com as tags `1.1.0`, `1.1`, `1` e `latest`. Trocando `:latest` por `:1` no
-  `compose.yaml`, a atualização automática pega correções e novidades, mas não pula para a 2.x sozinha.
+- **Escolher até onde atualizar.** A imagem sai com a versão exata (`1.1.0`), a minor (`1.1`) e `latest` — e, da
+  próxima versão em diante, também a major (`1`). Trocando `:latest` por `:1` no `compose.yaml`, a atualização
+  automática pega correções e novidades sem pular para a 2.x sozinha; `:1.1` pega só correções.
 - **Sem contas.** Se um proxy na frente já controla quem entra, `TUESDAY_NO_AUTH=1` deixa o servidor aberto,
   sem login.
 
