@@ -314,6 +314,32 @@ const estranho = session();
   check('e não enxerga projeto nenhum', JSON.parse(projects.text).projects.length === 0, projects.text.slice(0, 160));
 }
 
-if (failures) console.log('\n── servidor ──\n' + logs.join('').split('\n').slice(-40).join('\n'));
+// ── Outro processo gravando no mesmo banco não derruba o cadastro ──
+// (era SQLITE_BUSY_SNAPSHOT: um "database is locked" que o busy_timeout não repete)
+if (!process.env.TUESDAY_DATABASE_URL) {
+  const { createRequire } = await import('node:module');
+  const Database = createRequire(import.meta.url)('better-sqlite3');
+  const writer = new Database(path.join(dir, 'tuesday.db'));
+  writer.pragma('busy_timeout = 5000');
+  const insert = writer.prepare("INSERT INTO people (name, color, is_agent) VALUES (?, '#579bfc', 0)");
+  const rajada = writer.transaction((marca) => {
+    for (let i = 0; i < 20; i++) insert.run(`pressao-${marca}-${i}`);
+  });
+  const martelo = setInterval(() => {
+    try {
+      rajada(Date.now());
+    } catch {
+      /* banco ocupado: é exatamente o que este teste provoca */
+    }
+  }, 2);
+  const res = await session().fetch('/api/auth/sign-up/email', {
+    method: 'POST',
+    body: JSON.stringify({ name: 'Sob pressao', email: 'pressao@example.com', password: 'senha-forte-123' }),
+  });
+  clearInterval(martelo);
+  writer.close();
+  check('cadastro aguenta outro processo gravando ao mesmo tempo', res.status === 200, res);
+}
+
 console.log(failures ? `\n${failures} falha(s).` : '\nTudo certo.');
 finish(failures ? 1 : 0);

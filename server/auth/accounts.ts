@@ -4,7 +4,8 @@
 // As nossas (membros, convites, tokens) ficam nas migrações de sempre. Os dois lados falam com o mesmo banco.
 import { randomBytes } from 'node:crypto';
 import type { betterAuth } from 'better-auth';
-import { DB_DIALECT, DB_PATH } from '../db/connection';
+import { DB_DIALECT, DB_PATH, getDb } from '../db/connection';
+import { SqliteDriver } from '../db/sqlite';
 import { db } from '../services/common';
 import { getMeta, setMeta } from '../services/people';
 
@@ -72,16 +73,25 @@ function trustedOrigins(request?: Request): string[] {
   return [...new Set([...configured, ...sameOrigin])];
 }
 
+/**
+ * O banco das contas é o mesmo do resto do tuesday.
+ *
+ * No SQLite é a MESMA conexão de propósito: duas conexões no mesmo arquivo disputam o lock de escrita, e a que
+ * perde recebe SQLITE_BUSY_SNAPSHOT — um "database is locked" que o busy_timeout não repete. Foi o que derrubava
+ * o cadastro quando o git sync gravava ao mesmo tempo. Com uma conexão só, as gravações se enfileiram sozinhas.
+ * No PostgreSQL cada um tem a sua conexão; lá o banco resolve a concorrência.
+ */
 async function database(): Promise<unknown> {
   if (DB_DIALECT === 'postgres') {
     const { default: pg } = await import('pg');
     return new pg.Pool({ connectionString: process.env.TUESDAY_DATABASE_URL, max: 4 });
   }
-  const { default: Database } = await import('better-sqlite3');
-  const sqlite = new Database(DB_PATH);
-  sqlite.pragma('busy_timeout = 5000');
-  sqlite.pragma('journal_mode = WAL');
-  return sqlite;
+  const driver = getDb();
+  if (!(driver instanceof SqliteDriver)) throw new Error(`Não sei abrir as contas neste banco (${DB_PATH}).`);
+  const { SqliteDialect } = await import('kysely');
+  // transaction: false — em transação, um "database is locked" vira SQLITE_BUSY_SNAPSHOT, que o busy_timeout não
+  // repete. Comando a comando, a espera do busy_timeout funciona e outro processo gravando não derruba o cadastro.
+  return { dialect: new SqliteDialect({ database: driver.raw }), type: 'sqlite' as const, transaction: false };
 }
 
 /**
