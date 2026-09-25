@@ -133,7 +133,15 @@ Algumas coisas a saber:
 - **Pastas de código.** Git e TODOs leem pastas do servidor. Monte as pastas no contêiner (veja o comentário em
   `compose.yaml`) e vincule os projetos a elas.
 - **Backup.** `docker compose exec postgres pg_dump -U tuesday tuesday > tuesday.sql`
-- **Atualizar.** `git pull && docker compose up -d --build` — as migrações do banco rodam sozinhas.
+- **Atualizar.** `docker compose pull && docker compose up -d` — as migrações do banco rodam sozinhas. Para não
+  precisar fazer isso a cada versão, suba com `docker compose --profile auto up -d`: junto vai um
+  [watchtower](https://containrrr.dev/watchtower/) que, de madrugada, confere se saiu imagem nova do tuesday,
+  baixa e recria o contêiner sozinho (só o do tuesday — o PostgreSQL fica de fora de propósito). Ele precisa do
+  socket do Docker, e quem manda nesse socket manda no servidor: ligue só se confia em quem tem acesso à máquina.
+  Preferindo não expor o socket, o mesmo efeito sai de uma linha no cron do servidor:
+  `0 4 * * * cd /srv/tuesday && docker compose pull -q && docker compose up -d`.
+- **Ficar numa major.** A imagem sai com as tags `1.1.0`, `1.1`, `1` e `latest`. Trocando `:latest` por `:1` no
+  `compose.yaml`, a atualização automática pega correções e novidades, mas não pula para a 2.x sozinha.
 - **Sem contas.** Se um proxy na frente já controla quem entra, `TUESDAY_NO_AUTH=1` deixa o servidor aberto,
   sem login.
 

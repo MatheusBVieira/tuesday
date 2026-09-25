@@ -20,6 +20,9 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # Atrás de um proxy com HTTPS (nginx, Caddy, Traefik), para o limite de tentativas usar o IP real:
       # TUESDAY_TRUST_PROXY: '1'
+    labels:
+      # Marca quem o watchtower (abaixo) pode atualizar — o PostgreSQL fica de fora de propósito.
+      com.centurylinklabs.watchtower.enable: 'true'
     # Pastas de código para os commits ligados aos itens e os TODOs: monte aqui e vincule os projetos a /repos/...
     # volumes:
     #   - /srv/codigo:/repos:ro
@@ -41,6 +44,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # Atualização automática (opcional):  docker compose --profile auto up -d
+  # Toda madrugada ele confere se saiu imagem nova do tuesday, baixa e recria o contêiner. As migrações do banco
+  # rodam sozinhas na subida. Precisa do socket do Docker: quem manda nele manda no servidor, então só ligue se
+  # confia em quem tem acesso à máquina. Trocando ":latest" por ":1" na imagem acima, ele fica dentro da major.
+  watchtower:
+    profiles: ['auto']
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    command: --label-enable --cleanup --schedule "0 0 4 * * *"
+    environment:
+      # O watchtower 1.7.1 conversa com o Docker numa versão de API que os daemons novos recusam; isto resolve.
+      DOCKER_API_VERSION: '1.41'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   postgres:
