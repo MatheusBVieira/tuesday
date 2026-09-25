@@ -89,7 +89,7 @@ Com [Docker](https://docs.docker.com/get-docker/), numa máquina da rede (ou num
 ```bash
 git clone https://github.com/MatheusBVieira/tuesday.git
 cd tuesday
-cp .env.example .env     # defina POSTGRES_PASSWORD e o endereço do servidor
+cp .env.example .env     # defina POSTGRES_PASSWORD
 docker compose up -d
 ```
 
@@ -120,6 +120,9 @@ claude mcp add --transport http tuesday http://<servidor>:4010/mcp --header "Aut
 
 Algumas coisas a saber:
 
+- **Quem pode criar conta.** Qualquer pessoa que alcance o endereço do servidor pode se cadastrar — mas não vê
+  projeto nenhum até ser convidada. Fora de uma rede de confiança, deixe o tuesday atrás de VPN (Tailscale,
+  WireGuard) ou de um proxy com autenticação.
 - **Endereço.** Acessando direto pelo IP da máquina na rede, não precisa configurar nada: o servidor confia no
   endereço por onde foi aberto. Com domínio ou proxy na frente, defina `TUESDAY_URL` com o endereço público.
 - **HTTPS.** Fora da rede local, coloque um proxy com HTTPS na frente (Caddy, nginx, Traefik) e defina
