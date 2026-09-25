@@ -13,15 +13,14 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Column, Item, Person } from '../../../shared/types';
-import { EMPTY_STATUS_COLOR } from '../../../shared/colors';
-import { statusLabelOf } from '../../../shared/values';
+import type { Person } from '../../../shared/types';
 import { cx } from '../../lib/format';
 import { cardColumnIdsOf, laneColumnOf } from '../../lib/kanban';
-import { activeFilterCount, filterItems, hasActiveFilters } from '../../lib/view';
+import { activeFilterCount, filterItems, hasActiveFilters, isFilterable } from '../../lib/view';
 import { navigate, type ViewKind } from '../../router';
 import { actions, useStore } from '../../store';
 import { ColumnTypeIcon } from '../cells/columnMeta';
+import { FilterOptionList } from './FilterOptions';
 import { Avatar, AvatarStack } from '../ui/Avatar';
 import { Checkbox } from '../ui/Checkbox';
 import { Menu, MenuItem } from '../ui/Menu';
@@ -187,58 +186,14 @@ function PersonFilter() {
   );
 }
 
-interface FilterOption {
-  id: number;
-  name: string;
-  color?: string;
-  person?: Person;
-  count: number;
-}
-
-function filterOptions(column: Column, items: Item[], people: Person[], selected: number[]): FilterOption[] {
-  const key = String(column.id);
-  const counts = new Map<number, number>();
-  let empty = 0;
-  if (column.type === 'status') {
-    for (const item of items) {
-      const label = statusLabelOf(column, item.values[key]);
-      if (label) counts.set(label.id, (counts.get(label.id) ?? 0) + 1);
-      else empty++;
-    }
-    return [
-      ...(column.settings.labels ?? []).map((l) => ({
-        id: l.id,
-        name: l.name || 'Sem nome',
-        color: l.color,
-        count: counts.get(l.id) ?? 0,
-      })),
-      { id: 0, name: 'Vazio', color: EMPTY_STATUS_COLOR, count: empty },
-    ].filter((o) => o.count > 0 || selected.includes(o.id));
-  }
-  for (const item of items) {
-    const ids = (item.values[key] as number[] | undefined) ?? [];
-    if (!ids.length) empty++;
-    for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
-  }
-  return [
-    ...people.filter((p) => counts.has(p.id)).map((p) => ({ id: p.id, name: p.name, person: p, count: counts.get(p.id) ?? 0 })),
-    ...(empty ? [{ id: 0, name: 'Ninguém', color: EMPTY_STATUS_COLOR, count: empty }] : []),
-  ];
-}
-
 function FilterButton() {
   const board = useStore((s) => s.board)!;
   const people = useStore((s) => s.people);
   const filters = useStore((s) => s.filters);
   const popover = usePopover({ placement: 'bottom-start' });
   const count = activeFilterCount(filters);
-  const columns = board.columns.filter((c) => c.type === 'status' || c.type === 'people');
+  const columns = board.columns.filter(isFilterable);
   const visible = useMemo(() => filterItems(board, filters, people).length, [board, filters, people]);
-
-  const toggleOption = (column: Column, id: number) => {
-    const current = filters.labels[String(column.id)] ?? [];
-    actions.setFilters({ labels: { ...filters.labels, [String(column.id)]: toggle(current, id) } });
-  };
 
   return (
     <>
@@ -265,37 +220,15 @@ function FilterButton() {
           )}
         </div>
         {columns.length === 0 ? (
-          <p className="popover-subtitle">Adicione colunas de status ou de pessoas para filtrar.</p>
+          <p className="popover-subtitle">Adicione colunas de status, pessoas, data ou checkbox para filtrar.</p>
         ) : (
           <div className="filter-popover__columns">
-            {columns.map((column) => {
-              const selected = filters.labels[String(column.id)] ?? [];
-              const options = filterOptions(column, board.items, people, selected);
-              return (
-                <div key={column.id} className="filter-col">
-                  <div className="filter-col__title ellipsis">{column.title}</div>
-                  <div className="filter-col__options">
-                    {options.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={cx('filter-chip', selected.includes(option.id) && 'is-selected')}
-                        onClick={() => toggleOption(column, option.id)}
-                      >
-                        {option.person ? (
-                          <Avatar person={option.person} size={18} />
-                        ) : (
-                          <span className="filter-chip__dot" style={{ background: option.color }} />
-                        )}
-                        <span className="ellipsis">{option.name}</span>
-                        <span className="filter-chip__count">{option.count}</span>
-                      </button>
-                    ))}
-                    {options.length === 0 && <span className="filter-col__empty">Sem valores</span>}
-                  </div>
-                </div>
-              );
-            })}
+            {columns.map((column) => (
+              <div key={column.id} className="filter-col">
+                <div className="filter-col__title ellipsis">{column.title}</div>
+                <FilterOptionList column={column} />
+              </div>
+            ))}
           </div>
         )}
       </PopoverPanel>

@@ -149,8 +149,10 @@
   justify-content: flex-start;
 }
 
+/* a última coluna (a do "+") ocupa o resto da largura, como no monday */
 .cell--end {
   width: 40px;
+  flex-grow: 1;
   border-right: 0;
 }
 
@@ -239,9 +241,50 @@
   opacity: 1;
 }
 
+/* ── Filtro pelo título da coluna ───────────────────────── */
+.hcell--filterable {
+  cursor: pointer;
+}
+
+.hcell__filter {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  opacity: 0;
+}
+
+.hcell:hover .hcell__filter,
+.hcell__filter:focus-visible,
+.hcell__filter.is-open,
+.hcell__filter.is-active {
+  opacity: 1;
+}
+
+.hcell__filter.is-active {
+  color: var(--primary);
+  background: var(--primary-selected);
+}
+
+.column-filter {
+  width: 260px;
+  padding: 14px 14px 12px;
+}
+
+.column-filter__head {
+  margin-bottom: 10px;
+}
+
+.column-filter__title {
+  min-width: 0;
+}
+
 .hcell--add {
   width: 40px;
-  padding: 0;
+  flex-grow: 1;
+  justify-content: flex-start;
+  padding: 0 0 0 6px;
   border-right: 0;
   cursor: default;
 }
@@ -386,6 +429,7 @@ body.is-resizing * {
 
 .add-row__rest {
   width: calc(var(--cols-w) + 40px);
+  flex-grow: 1;
   flex-shrink: 0;
   border-bottom: 1px solid var(--grid-line);
 }

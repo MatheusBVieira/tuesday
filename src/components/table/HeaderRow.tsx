@@ -1,13 +1,23 @@
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowDown, ArrowUp, ChevronRight, Ellipsis, EyeOff, Pencil, Plus, Settings2, Trash, Type } from 'lucide-react';
-import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { ArrowDown, ArrowUp, ChevronRight, Ellipsis, EyeOff, ListFilter, Pencil, Plus, Settings2, Trash, Type } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { Column, ColumnSettings } from '../../../shared/types';
 import { COLUMN_TYPE_LABELS, formatItemRef, formatNumber } from '../../../shared/values';
 import { domOnly } from '../../lib/dnd';
 import { cx } from '../../lib/format';
+import { filterItems, isFilterable } from '../../lib/view';
 import { actions, useStore } from '../../store';
+import { FilterOptionList, clearColumnFilter, useColumnFilter } from '../board/FilterOptions';
 import { ColumnTypePicker } from '../cells/columnMeta';
 import { LabelEditor } from '../cells/StatusPicker';
 import { IdFormatFields, parseItemNumber, type IdFormatDraft } from '../shell/IdFormatFields';
@@ -255,18 +265,84 @@ function ColumnMenu({ column, onRename, onClose }: { column: Column; onRename: (
   );
 }
 
+/** Filtro de uma coluna só, aberto pelo título dela. Continua o mesmo filtro do botão "Filtrar" da barra. */
+function ColumnFilterPanel({ column }: { column: Column }) {
+  const board = useStore((s) => s.board)!;
+  const people = useStore((s) => s.people);
+  const filters = useStore((s) => s.filters);
+  const selected = useColumnFilter(column.id);
+  const visible = useMemo(() => filterItems(board, filters, people).length, [board, filters, people]);
+  return (
+    <>
+      <div className="filter-popover__head column-filter__head">
+        <div className="column-filter__title">
+          <div className="popover-title ellipsis">Filtrar por {column.title}</div>
+          <div className="popover-subtitle">
+            Mostrando {visible} de {board.items.length} itens
+          </div>
+        </div>
+        {selected.length > 0 && (
+          <button type="button" className="btn btn--tertiary btn--sm" onClick={() => clearColumnFilter(column.id)}>
+            Limpar
+          </button>
+        )}
+      </div>
+      <FilterOptionList column={column} />
+    </>
+  );
+}
+
 function ColumnHeaderCell({ sortableId, column }: { sortableId: string; column: Column }) {
   const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: sortableId });
   const [editing, setEditing] = useState(false);
   const menu = usePopover({ placement: 'bottom-end' });
+  const filter = usePopover({ placement: 'bottom' });
+  const filterable = isFilterable(column);
+  const filtered = useColumnFilter(column.id).length > 0;
+  const pressedAt = useRef<{ x: number; y: number } | null>(null);
+  const clickTimer = useRef<number | undefined>(undefined);
+  const setRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node);
+      filter.refs.setReference(node);
+    },
+    [setNodeRef, filter.refs],
+  );
+  useEffect(() => () => window.clearTimeout(clickTimer.current), []);
+
+  // Um clique no título abre o filtro — com uma pequena espera, porque o duplo clique continua renomeando.
+  const onClick = (e: ReactMouseEvent) => {
+    window.clearTimeout(clickTimer.current);
+    if (!filterable || editing || e.detail > 1) return;
+    if ((e.target as HTMLElement).closest('.hcell__menu, .hcell__filter')) return;
+    const start = pressedAt.current;
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) return; // foi um arrasto da coluna
+    const open = filter.open;
+    clickTimer.current = window.setTimeout(() => filter.setOpen(!open), 220);
+  };
+
   return (
     <>
       <div
-        ref={setNodeRef}
-        className={cx('hcell', isDragging && 'is-dragging')}
+        ref={setRefs}
+        className={cx('hcell', isDragging && 'is-dragging', filterable && 'hcell--filterable')}
         style={{ width: `var(--col-${column.id})`, transform: CSS.Translate.toString(transform), transition }}
         {...domOnly(listeners)}
+        onPointerDownCapture={(e) => (pressedAt.current = { x: e.clientX, y: e.clientY })}
+        onClick={onClick}
+        onDoubleClick={() => window.clearTimeout(clickTimer.current)}
       >
+        {filterable && (
+          <button
+            type="button"
+            className={cx('icon-btn icon-btn--sm hcell__filter', filtered && 'is-active', filter.open && 'is-open')}
+            aria-label={`Filtrar por ${column.title}`}
+            aria-expanded={filter.open}
+            onClick={() => filter.setOpen(!filter.open)}
+          >
+            <ListFilter size={14} />
+          </button>
+        )}
         <EditableText
           value={column.title}
           onSave={(title) => void actions.updateColumn(column.id, { title })}
@@ -288,6 +364,11 @@ function ColumnHeaderCell({ sortableId, column }: { sortableId: string; column: 
         </button>
         <ResizeHandle target={column.id} />
       </div>
+      {filterable && (
+        <PopoverPanel popover={filter} className="column-filter">
+          <ColumnFilterPanel column={column} />
+        </PopoverPanel>
+      )}
       <PopoverPanel popover={menu}>
         <ColumnMenu
           column={column}
