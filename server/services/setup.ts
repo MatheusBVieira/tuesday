@@ -46,6 +46,7 @@ function readJson(file: string): Record<string, unknown> | null {
 interface ServerEntry {
   command?: string;
   args?: string[];
+  env?: Record<string, string>;
 }
 
 function serverEntry(file: string): ServerEntry | undefined {
@@ -58,10 +59,14 @@ function serverEntry(file: string): ServerEntry | undefined {
 
 /** A entrada aponta para o script desta instalação do tuesday? */
 function pointsHere(entry: ServerEntry | undefined): boolean {
-  const target = path.resolve(mcpScriptPath());
-  const same = (a: string) =>
-    process.platform === 'win32' ? path.resolve(a).toLowerCase() === target.toLowerCase() : path.resolve(a) === target;
-  return !!entry?.args?.some((a) => typeof a === 'string' && same(a));
+  const same = (a: string, b: string) =>
+    process.platform === 'win32' ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
+  const script = mcpScriptPath();
+  if (!entry?.args?.some((a) => typeof a === 'string' && same(a, script))) return false;
+  // A 1.0.0 gravava a pasta de dados antiga (%APPDATA%\tuesday): uma entrada assim precisa ser refeita.
+  const dataDir = mcpLauncher().env?.TUESDAY_DATA_DIR;
+  const entryDataDir = entry.env?.TUESDAY_DATA_DIR;
+  return dataDir && entryDataDir ? same(dataDir, entryDataDir) : dataDir === entryDataDir;
 }
 
 function run(file: string, args: string[]): Promise<string> {
@@ -216,7 +221,14 @@ export function configureClaudeHooks({ dryRun = false, remove = false } = {}): S
 }
 
 /** Registra (ou atualiza) o MCP no Claude Code, no escopo do usuário — vale para todas as pastas. */
+/** Erra na hora em vez de gravar uma configuração que aponta para um arquivo que não existe. */
+function assertMcpScript(): void {
+  const script = mcpScriptPath();
+  if (!fs.existsSync(script)) throw badRequest(`Não encontrei o servidor MCP em ${script}. Reinstale o tuesday e tente de novo.`);
+}
+
 export async function configureClaudeCode({ dryRun = false } = {}): Promise<SetupResult> {
+  assertMcpScript();
   const cli = await findClaudeCli();
   if (!cli)
     throw badRequest(
@@ -234,6 +246,7 @@ export async function configureClaudeCode({ dryRun = false } = {}): Promise<Setu
 
 /** Inclui o tuesday no claude_desktop_config.json (com backup do arquivo anterior). */
 export function configureClaudeDesktop({ dryRun = false } = {}): SetupResult {
+  assertMcpScript();
   const file = claudeDesktopConfigPath();
   if (!fs.existsSync(path.dirname(file)))
     throw badRequest(`Não encontrei o Claude Desktop (${path.dirname(file)} não existe). Abra o Claude Desktop uma vez e tente de novo.`);

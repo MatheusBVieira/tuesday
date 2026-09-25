@@ -39,13 +39,13 @@ function sqlitePath(root) {
   if (process.env.TUESDAY_DATA_DIR) return path.join(path.resolve(process.env.TUESDAY_DATA_DIR), 'tuesday.db');
   if (process.env.TUESDAY_RUNTIME === 'desktop') {
     const home = os.homedir();
-    const base =
+    const dir =
       process.platform === 'win32'
-        ? (process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming'))
+        ? path.join(home, '.tuesday')
         : process.platform === 'darwin'
-          ? path.join(home, 'Library', 'Application Support')
-          : (process.env.XDG_CONFIG_HOME ?? path.join(home, '.config'));
-    return path.join(base, 'tuesday', 'tuesday.db');
+          ? path.join(home, 'Library', 'Application Support', 'tuesday')
+          : path.join(process.env.XDG_CONFIG_HOME ?? path.join(home, '.config'), 'tuesday');
+    return path.join(dir, 'tuesday.db');
   }
   return path.join(root, 'data', 'tuesday.db');
 }

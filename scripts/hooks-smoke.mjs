@@ -229,6 +229,38 @@ check(
   settings,
 );
 
+// ── App instalado vindo da 1.0.0: o banco de %APPDATA%\tuesday passa para %USERPROFILE%\.tuesday ──
+if (process.platform === 'win32') {
+  const home = path.join(dir, 'home');
+  const appData = path.join(dir, 'appdata');
+  const legacy = path.join(appData, 'tuesday', 'tuesday.db');
+  const legacyFolder = path.join(dir, 'legado');
+  fs.mkdirSync(legacyFolder);
+  const { TUESDAY_DB: _db, TUESDAY_DATA_DIR: _dir, ...base } = env;
+  const run = (args, extra) =>
+    spawnSync(process.execPath, [path.join(root, 'bin', 'tuesday.mjs'), ...args], {
+      cwd: legacyFolder,
+      env: { ...base, ...extra },
+      encoding: 'utf8',
+    });
+  run(['init', 'Legado'], { TUESDAY_DB: legacy });
+  const desktop = run(['status'], { TUESDAY_RUNTIME: 'desktop', USERPROFILE: home, APPDATA: appData });
+  const moved = path.join(home, '.tuesday', 'tuesday.db');
+  check(
+    'app desktop traz o banco da 1.0.0 de %APPDATA% para %USERPROFILE%\\.tuesday',
+    fs.existsSync(moved) && fs.existsSync(legacy) && desktop.stdout.includes(moved) && desktop.stdout.includes('Legado'),
+    desktop.stdout + desktop.stderr,
+  );
+  // O MCP configurado pela 1.0.0 passa TUESDAY_DATA_DIR=%APPDATA%\tuesday.
+  const oldMcp = run(['status'], {
+    TUESDAY_RUNTIME: 'desktop',
+    USERPROFILE: home,
+    APPDATA: appData,
+    TUESDAY_DATA_DIR: path.dirname(legacy),
+  });
+  check('a pasta antiga em TUESDAY_DATA_DIR vale como a nova', oldMcp.stdout.includes(moved), oldMcp.stdout + oldMcp.stderr);
+}
+
 await mcp.close();
 try {
   fs.rmSync(dir, { recursive: true, force: true });

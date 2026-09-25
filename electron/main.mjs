@@ -7,12 +7,16 @@
  *   3. Abre a janela. Links para fora (sites, vscode://) abrem no programa certo, não dentro do app.
  *   4. Confere se há versão nova nos Releases do GitHub, baixa em segundo plano e instala ao fechar.
  *
- * O banco mora em %APPDATA%\tuesday\tuesday.db. O Claude Code e o Claude Desktop falam com ele pelo MCP, que
+ * O banco mora em %USERPROFILE%\.tuesday\tuesday.db. O Claude Code e o Claude Desktop falam com ele pelo MCP, que
  * este mesmo executável roda como Node (ELECTRON_RUN_AS_NODE) — o app não precisa estar aberto.
+ *
+ * Fora do AppData de propósito: o Claude Desktop é um app empacotado (MSIX), e o que ele inicia (o Claude Code, o
+ * MCP, os hooks) enxerga uma cópia privada do AppData — não o mesmo arquivo que este app, aberto pelo atalho.
  */
 import { app, BrowserWindow, dialog, shell } from 'electron';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import updater from 'electron-updater';
@@ -50,7 +54,10 @@ function freePort(preferred = 4010) {
   return tryPort(preferred).catch(() => tryPort(0));
 }
 
-/** Cópia do banco antes de uma versão nova abri-lo. Ficam as cinco mais recentes, em %APPDATA%\tuesday\backups. */
+/** Pasta do banco — a mesma regra de desktopDataDir() em server/db/connection.ts. */
+const defaultDataDir = () => (process.platform === 'win32' ? join(homedir(), '.tuesday') : app.getPath('userData'));
+
+/** Cópia do banco antes de uma versão nova abri-lo. Ficam as cinco mais recentes, em <pasta do banco>\backups. */
 function backupBeforeUpgrade(dataDir) {
   const db = join(dataDir, 'tuesday.db');
   const marker = join(dataDir, 'versao.txt');
@@ -85,7 +92,7 @@ function checkForUpdates() {
 async function start() {
   app.setAppUserModelId('dev.tuesday.app');
   // TUESDAY_DATA_DIR já definido vence (instalação portátil, testes).
-  const dataDir = process.env.TUESDAY_DATA_DIR || app.getPath('userData');
+  const dataDir = process.env.TUESDAY_DATA_DIR || defaultDataDir();
   const port = await freePort();
 
   // O servidor lê a configuração do ambiente na hora do import — por isso tudo é definido antes.
@@ -136,7 +143,7 @@ if (first) {
     .catch((error) => {
       dialog.showErrorBox(
         'O tuesday não conseguiu abrir',
-        `${error instanceof Error ? error.message : String(error)}\n\nSeus dados ficam em %APPDATA%\\tuesday — faça uma cópia antes de apagar qualquer coisa.`,
+        `${error instanceof Error ? error.message : String(error)}\n\nSeus dados ficam em ${process.env.TUESDAY_DATA_DIR || defaultDataDir()} — faça uma cópia antes de apagar qualquer coisa.`,
       );
       app.exit(1);
     });

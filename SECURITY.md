@@ -2,7 +2,7 @@
 
 ## O que o tuesday faz com os seus dados
 
-- **No computador, tudo fica nele.** Um arquivo SQLite em `%APPDATA%\tuesday` no app instalado, ou em `data/`
+- **No computador, tudo fica nele.** Um arquivo SQLite em `%USERPROFILE%\.tuesday` no app instalado, ou em `data/`
   rodando pelo código. Não há conta, nuvem, servidor do projeto nem telemetria.
 - **Servidor local fechado para fora.** Rodando em `127.0.0.1`, o servidor recusa pedidos com `Host` ou `Origin`
   de outro endereço — um site aberto no navegador não consegue usar a API por trás de você (DNS rebinding e CSRF).

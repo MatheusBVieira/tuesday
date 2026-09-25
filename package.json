@@ -1,6 +1,6 @@
 {
   "name": "tuesday",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Gestão de tarefas open source no estilo monday.com, feita para trabalhar junto com o Claude: tabela, Kanban, subitens, Git e servidor MCP. Local com SQLite ou em servidor com PostgreSQL.",
   "license": "MIT",
   "author": "Matheus Bruggemann Vieira",

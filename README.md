@@ -58,9 +58,12 @@ PostgreSQL.
    Não precisa ter Node instalado: o próprio tuesday roda o servidor MCP.
 
 **O app se atualiza sozinho.** Quando sai versão nova, ele baixa em segundo plano e instala quando você fechar.
-Antes de uma versão nova abrir o banco, ele guarda uma cópia em `%APPDATA%\tuesday\backups`.
+Antes de uma versão nova abrir o banco, ele guarda uma cópia em `%USERPROFILE%\.tuesday\backups`.
 
-Os dados ficam em `%APPDATA%\tuesday`. Desinstalar não apaga essa pasta. Para usar a CLI (`tuesday init`,
+Os dados ficam em `%USERPROFILE%\.tuesday`. Desinstalar não apaga essa pasta. (Fora do `AppData` de propósito: o
+Claude Desktop é um app empacotado, e o que ele inicia — o Claude Code e o MCP do tuesday — enxerga uma cópia
+privada do `AppData`, não os arquivos do app aberto pelo atalho. Quem vem da 1.0.0 tem o banco trazido de
+`%APPDATA%\tuesday` na primeira abertura.) Para usar a CLI (`tuesday init`,
 `tuesday brief`, `tuesday todos`…), coloque a pasta `bin` da instalação no PATH:
 `%LOCALAPPDATA%\Programs\tuesday\bin`.
 

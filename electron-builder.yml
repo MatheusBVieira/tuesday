@@ -31,7 +31,7 @@ nsis:
   # Um clique, por usuário, sem pedir administrador.
   oneClick: true
   perMachine: false
-  # Desinstalar não apaga o banco em %APPDATA%\tuesday. Reinstalar devolve tudo.
+  # Desinstalar não apaga o banco em %USERPROFILE%\.tuesday. Reinstalar devolve tudo.
   deleteAppDataOnUninstall: false
   shortcutName: tuesday
   artifactName: tuesday-Setup-${version}.${ext}

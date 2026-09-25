@@ -5,6 +5,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Driver, Statement } from './driver';
 
+/** Cópia consistente de um banco (com o WAL aplicado) num arquivo novo. */
+export function copySqliteFile(from: string, to: string): void {
+  fs.mkdirSync(path.dirname(to), { recursive: true });
+  const source = new Database(from, { readonly: true, fileMustExist: true });
+  try {
+    source.prepare('VACUUM INTO ?').run(to);
+  } finally {
+    source.close();
+  }
+}
+
 export class SqliteDriver implements Driver {
   readonly dialect = 'sqlite' as const;
   readonly raw: Database.Database;
@@ -12,8 +23,9 @@ export class SqliteDriver implements Driver {
   constructor(file: string) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     this.raw = new Database(file);
-    this.raw.pragma('journal_mode = WAL');
+    // Antes do journal_mode: vários processos abrindo juntos (o Claude retomando sessões) esperam em vez de falhar.
     this.raw.pragma('busy_timeout = 5000');
+    this.raw.pragma('journal_mode = WAL');
     this.raw.pragma('foreign_keys = ON');
     this.raw.pragma('synchronous = NORMAL');
   }
