@@ -1331,109 +1331,256 @@
 }
 
 /* ── Quem participa, convites e contas ──────────────────── */
-.members,
-.account {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+.team-block {
+  margin-top: 20px;
 }
 
-.members__list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.member-row {
+.team-block__head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--layout-border);
-  border-radius: var(--radius-sm);
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  margin-bottom: 6px;
 }
 
-.member-row__icon {
-  display: grid;
+.team-block__head h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.team-block__head h3 svg {
+  color: var(--icon);
+}
+
+.team-block__count {
+  display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
   background: var(--grey-bg);
   color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.team-block__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-block__hint {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.team-block__hint code {
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--grey-bg);
+  font-size: 12.5px;
+}
+
+.team-block__hint--ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--positive);
+}
+
+.team-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--layout-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--grid-line);
+}
+
+.team-row:first-child {
+  border-top: 0;
+}
+
+.team-row:hover {
+  background: var(--row-hover);
+}
+
+.team-row--fresh {
+  background: var(--primary-highlighted);
+}
+
+.team-row--fresh:hover {
+  background: var(--primary-highlighted);
+}
+
+.team-row__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--grey-bg);
+  color: var(--icon);
   flex-shrink: 0;
 }
 
-.member-row__text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-
-.member-row__text strong {
-  font-weight: 500;
-}
-
-.member-row__hint {
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  overflow-wrap: anywhere;
-}
-
-.member-row__you {
-  color: var(--text-secondary);
-  font-weight: 400;
-}
-
-.member-row__role {
-  color: var(--text-secondary);
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.members__invite,
-.account__section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px solid var(--layout-border);
-}
-
-.members__invite-head {
+.team-row__who {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
-.members__invite-actions {
+.team-row__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.team-row__tag {
+  margin-left: 0;
+}
+
+.team-row__sub {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.team-row__sub--right {
+  white-space: nowrap;
+}
+
+.team-row__menu {
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.team-row:hover .team-row__menu,
+.team-row__menu.is-open,
+.team-row__menu:focus-visible {
+  opacity: 1;
+}
+
+/* ── Papel (dono, administrador, membro, leitor) ─────────── */
+.role-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 8px 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.role-picker:hover,
+.role-picker.is-open {
+  border-color: var(--ui-border);
+  background: var(--bg);
+}
+
+.role-picker svg {
+  color: var(--icon);
+}
+
+.role-static {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.role-menu {
+  min-width: 260px;
+}
+
+/* ── Copiar link do convite / token do Claude ────────────── */
+.copy-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.copy-field__value {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  background: var(--bg);
+}
+
+.copy-field__value.is-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.copy-field__btn {
+  flex-shrink: 0;
+}
+
+/* ── Senha ───────────────────────────────────────────────── */
+.password-form {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.members__invite-actions .input {
+.password-form .input {
   flex: 1;
-  min-width: 140px;
+  min-width: 150px;
 }
 
-.members__note {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  line-height: 1.5;
+.password-form--inline {
+  margin-top: 4px;
 }
 
-.account__section h4 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+/* ── Cabeçalho da conta ─────────────────────────────────── */
+.account-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--grid-line);
 }
 
-.account__tabs {
-  margin: 0;
+.account-head__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.account-tabs {
+  margin-top: 16px;
+}
+
+.account-tabs button {
+  gap: 6px;
 }
 
 /* Sem permissão de edição: as células mostram o valor, mas não abrem */
@@ -1443,10 +1590,4 @@
 
 .cell-readonly > * {
   pointer-events: none;
-}
-
-.invite-link {
-  height: 26px;
-  margin-top: 2px;
-  font-size: 12.5px;
 }

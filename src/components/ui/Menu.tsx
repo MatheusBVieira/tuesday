@@ -12,6 +12,7 @@ export function Menu({ children, className }: { children: ReactNode; className?:
 export function MenuItem({
   icon,
   label,
+  hint,
   onClick,
   danger,
   disabled,
@@ -20,6 +21,8 @@ export function MenuItem({
 }: {
   icon?: ReactNode;
   label: ReactNode;
+  /** linha de apoio embaixo do rótulo (ex.: o que um papel permite) */
+  hint?: ReactNode;
   onClick?: () => void;
   danger?: boolean;
   disabled?: boolean;
@@ -30,12 +33,19 @@ export function MenuItem({
     <button
       type="button"
       role="menuitem"
-      className={cx('menu__item', danger && 'menu__item--danger', selected && 'is-selected')}
+      className={cx('menu__item', hint != null && 'menu__item--tall', danger && 'menu__item--danger', selected && 'is-selected')}
       onClick={onClick}
       disabled={disabled}
     >
       {icon}
-      <span className="ellipsis">{label}</span>
+      {hint != null ? (
+        <span className="menu__item-text">
+          <span className="ellipsis">{label}</span>
+          <span className="menu__item-hint">{hint}</span>
+        </span>
+      ) : (
+        <span className="ellipsis">{label}</span>
+      )}
       {end != null && <span className="menu__item-end">{end}</span>}
     </button>
   );

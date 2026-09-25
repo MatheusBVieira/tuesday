@@ -258,6 +258,28 @@
   color: var(--text);
 }
 
+/* Item com uma linha de apoio embaixo do rótulo (ex.: o que cada papel permite). */
+.menu__item--tall {
+  height: auto;
+  min-height: 44px;
+  padding: 6px 8px;
+  align-items: flex-start;
+}
+
+.menu__item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.menu__item-hint {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
 .menu__item svg {
   color: var(--icon);
   flex-shrink: 0;
