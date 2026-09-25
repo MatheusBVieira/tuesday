@@ -93,6 +93,8 @@ server.stdout.on('data', (d) => logs.push(String(d)));
 server.stderr.on('data', (d) => logs.push(String(d)));
 
 const finish = (code) => {
+  // Falhou? O que o servidor escreveu costuma ter a causa (o Better Auth engole o erro num 422 genérico).
+  if (code !== 0) console.log(['', '── servidor ──', ...logs.join('').split('\n').slice(-60)].join('\n'));
   server.kill();
   setTimeout(() => {
     try {
@@ -108,6 +110,17 @@ if (!(await waitForServer())) {
   console.log('O servidor não subiu:\n' + logs.join(''));
   finish(1);
 }
+
+process.on('uncaughtException', (error) => {
+  console.log(`
+Erro inesperado no teste: ${error.message}`);
+  finish(1);
+});
+process.on('unhandledRejection', (error) => {
+  console.log(`
+Erro inesperado no teste: ${error instanceof Error ? error.message : error}`);
+  finish(1);
+});
 
 // ── Sem conta, nada passa ──────────────────────────────────
 {
