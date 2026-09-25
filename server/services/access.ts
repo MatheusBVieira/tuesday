@@ -153,6 +153,8 @@ export function claimProject(projectId: number, viewer: Viewer | null): void {
  * o servidor antes das contas. Sem isto eles ficariam sem dono e ninguém os veria.
  */
 export function adoptOrphanProjects(userId: string): void {
+  const belongs = db().prepare('SELECT 1 FROM project_members WHERE user_id = ? LIMIT 1').get(userId);
+  if (belongs) return;
   const rows = db().prepare('SELECT id FROM projects WHERE id NOT IN (SELECT project_id FROM project_members)').all() as { id: number }[];
   for (const row of rows) setMember(row.id, userId, 'dono');
 }

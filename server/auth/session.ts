@@ -2,7 +2,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { HttpError } from '../services/common';
 import { ensurePersonForUser } from '../services/people';
-import { userOfApiToken, type Viewer } from '../services/access';
+import { adoptOrphanProjects, userOfApiToken, type Viewer } from '../services/access';
 import type { AuthInstance } from './accounts';
 
 declare module 'express-serve-static-core' {
@@ -31,14 +31,15 @@ function bearer(req: Request): string | null {
   return /^bearer$/i.test(scheme) && value.trim() ? value.trim() : null;
 }
 
-const toViewer = (user: { id: string; name?: string | null; email: string; role?: string | null }, via: Viewer['via']): Viewer => ({
-  userId: user.id,
-  name: user.name ?? user.email,
-  email: user.email,
-  master: user.role === 'admin',
-  personId: ensurePersonForUser({ id: user.id, name: user.name ?? user.email, email: user.email }),
-  via,
-});
+function toViewer(user: { id: string; name?: string | null; email: string; role?: string | null }, via: Viewer['via']): Viewer {
+  const name = user.name ?? user.email;
+  const master = user.role === 'admin';
+  // Fora da transação do Better Auth (ver o comentário em accounts.ts): é aqui que a conta ganha a sua pessoa e,
+  // sendo a dona da instalação, adota os projetos que ainda não têm ninguém.
+  const personId = ensurePersonForUser({ id: user.id, name, email: user.email });
+  if (master) adoptOrphanProjects(user.id);
+  return { userId: user.id, name, email: user.email, master, personId, via };
+}
 
 /** Descobre quem está pedindo, sem barrar ninguém — quem barra é requireViewer. */
 export function withViewer(auth: AuthInstance): RequestHandler {

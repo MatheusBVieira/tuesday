@@ -5,9 +5,8 @@
 import { randomBytes } from 'node:crypto';
 import type { betterAuth } from 'better-auth';
 import { DB_DIALECT, DB_PATH } from '../db/connection';
-import { adoptOrphanProjects } from '../services/access';
 import { db } from '../services/common';
-import { ensurePersonForUser, getMeta, setMeta } from '../services/people';
+import { getMeta, setMeta } from '../services/people';
 
 export type AuthInstance = ReturnType<typeof betterAuth>;
 
@@ -113,11 +112,9 @@ export async function initAccounts(): Promise<AuthInstance> {
       user: {
         create: {
           // A primeira conta da instalação é a dona: ela administra as outras.
+          // Só leitura aqui: o gancho roda dentro da transação do Better Auth e a nossa conexão é outra — gravar
+          // daqui trava o SQLite (a transação espera a gravação, que espera a transação).
           before: async (user: Record<string, unknown>) => ({ data: { ...user, role: userCount() === 0 ? 'admin' : 'user' } }),
-          after: async (user: { id: string; name?: string | null; email: string }) => {
-            ensurePersonForUser({ id: user.id, name: user.name ?? user.email, email: user.email });
-            if (userCount() === 1) adoptOrphanProjects(user.id);
-          },
         },
       },
     },
