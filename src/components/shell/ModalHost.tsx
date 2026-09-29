@@ -153,6 +153,9 @@ function NewBoardModal({ onClose }: { onClose: () => void }) {
 
 function PersonRow({ person, isMe, isClaude, comContas }: { person: Person; isMe: boolean; isClaude: boolean; comContas: boolean }) {
   const palette = usePopover({ placement: 'bottom-start' });
+  // O menu só aparece quando tem o que oferecer: você não se remove nem "vira" você mesmo.
+  const podeSerEu = !isMe && !person.isAgent && !comContas;
+  const podeRemover = !isMe && !isClaude;
   const remover = () =>
     actions.confirm({
       title: `Remover ${person.name}?`,
@@ -182,11 +185,11 @@ function PersonRow({ person, isMe, isClaude, comContas }: { person: Person; isMe
         </span>
         {person.email && <span className="team-row__sub ellipsis">{person.email}</span>}
       </div>
-      {(!isClaude || (!isMe && !comContas)) && (
+      {(podeSerEu || podeRemover) && (
         <RowMenu label={`Opções de ${person.name}`}>
           {(close) => (
             <>
-              {!isMe && !person.isAgent && !comContas && (
+              {podeSerEu && (
                 <MenuItem
                   icon={<UserCheck size={16} />}
                   label="Sou eu"
@@ -197,7 +200,7 @@ function PersonRow({ person, isMe, isClaude, comContas }: { person: Person; isMe
                   }}
                 />
               )}
-              {!isMe && !isClaude && (
+              {podeRemover && (
                 <MenuItem
                   icon={<Trash size={16} />}
                   label="Remover pessoa"
