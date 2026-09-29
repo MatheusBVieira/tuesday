@@ -8,7 +8,12 @@ import { actions, useStore } from '../store';
  * pelo Claude via MCP — e a tela recarrega os dados em seguida.
  */
 export function useLiveSync(): void {
+  // Sem conta (tela de entrada), o /api/events responde 401 e o EventSource tentaria de novo
+  // para sempre — então só ligamos o tempo real com alguém dentro.
+  const signedOut = useStore((s) => s.signedOut);
+
   useEffect(() => {
+    if (signedOut) return;
     let timer: number | undefined;
     let retry: number | undefined;
     let source: EventSource | null = null;
@@ -58,5 +63,5 @@ export function useLiveSync(): void {
       window.clearTimeout(retry);
       source?.close();
     };
-  }, []);
+  }, [signedOut]);
 }

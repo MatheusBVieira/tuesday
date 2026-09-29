@@ -55,6 +55,11 @@ export function MenuDivider() {
   return <div className="menu__divider" role="separator" />;
 }
 
-export function MenuTitle({ children }: { children: ReactNode }) {
-  return <div className="menu__title">{children}</div>;
+export function MenuTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
+  return (
+    <div className="menu__title">
+      <span className="ellipsis">{children}</span>
+      {sub != null && <span className="menu__title-sub ellipsis">{sub}</span>}
+    </div>
+  );
 }

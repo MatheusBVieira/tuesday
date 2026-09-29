@@ -1,4 +1,4 @@
-import { Trash, UserPlus } from 'lucide-react';
+import { Trash, UserCheck, UserPlus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import type { BoardTemplate, Person } from '../../../shared/types';
 import { idPrefixFor } from '../../../shared/templates';
@@ -7,8 +7,10 @@ import { actions, useStore, type ConfirmSpec } from '../../store';
 import { Avatar } from '../ui/Avatar';
 import { ColorPalette } from '../ui/ColorPalette';
 import { EditableText } from '../ui/EditableText';
+import { MenuItem } from '../ui/Menu';
 import { Modal } from '../ui/Modal';
 import { PopoverPanel, usePopover } from '../ui/Popover';
+import { RowMenu } from '../ui/RowMenu';
 import { AccountModal } from './AccountModal';
 import { ConnectClaudeModal } from './ConnectClaudeModal';
 import { MembersModal } from './MembersModal';
@@ -149,44 +151,66 @@ function NewBoardModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PersonRow({ person, isMe, isClaude }: { person: Person; isMe: boolean; isClaude: boolean }) {
+function PersonRow({ person, isMe, isClaude, comContas }: { person: Person; isMe: boolean; isClaude: boolean; comContas: boolean }) {
   const palette = usePopover({ placement: 'bottom-start' });
-  const [confirming, setConfirming] = useState(false);
+  const remover = () =>
+    actions.confirm({
+      title: `Remover ${person.name}?`,
+      message: 'A pessoa sai das colunas de pessoas. O que ela já fez continua no histórico dos quadros.',
+      confirmLabel: 'Remover',
+      danger: true,
+      onConfirm: () => actions.deletePerson(person.id),
+    });
+
   return (
-    <div className="person-row">
+    <div className="team-row">
       <button
         ref={palette.refs.setReference}
         {...palette.getReferenceProps({ onClick: () => palette.setOpen(!palette.open) })}
         type="button"
         className="person-row__avatar"
-        aria-label="Mudar cor"
+        aria-label={`Mudar a cor de ${person.name}`}
         title="Mudar cor"
       >
         <Avatar person={person} size={34} />
       </button>
-      <div className="person-row__name">
-        <EditableText value={person.name} onSave={(name) => void actions.updatePerson(person.id, { name })} maxLength={80} />
+      <div className="team-row__who">
+        <span className="team-row__name">
+          <EditableText value={person.name} onSave={(name) => void actions.updatePerson(person.id, { name })} maxLength={80} />
+          {isMe && <span className="tag tag--me team-row__tag">Você</span>}
+          {person.isAgent && <span className="tag tag--agent team-row__tag">Agente via MCP</span>}
+        </span>
+        {person.email && <span className="team-row__sub ellipsis">{person.email}</span>}
       </div>
-      {isMe && <span className="tag tag--me">Você</span>}
-      {person.isAgent && <span className="tag tag--agent">Agente via MCP</span>}
-      {!isMe && !person.isAgent && (
-        <button type="button" className="btn btn--tertiary btn--xs" onClick={() => void actions.setMe(person.id)}>
-          Sou eu
-        </button>
-      )}
-      {!isMe && !isClaude && (
-        <button
-          type="button"
-          className={cx('btn btn--xs', confirming ? 'btn--danger' : 'btn--tertiary')}
-          onBlur={() => setConfirming(false)}
-          onClick={() => {
-            if (confirming) void actions.deletePerson(person.id);
-            else setConfirming(true);
-          }}
-          aria-label={`Remover ${person.name}`}
-        >
-          {confirming ? 'Remover?' : <Trash size={14} />}
-        </button>
+      {(!isClaude || (!isMe && !comContas)) && (
+        <RowMenu label={`Opções de ${person.name}`}>
+          {(close) => (
+            <>
+              {!isMe && !person.isAgent && !comContas && (
+                <MenuItem
+                  icon={<UserCheck size={16} />}
+                  label="Sou eu"
+                  hint="Os itens atribuídos a esta pessoa viram o seu trabalho"
+                  onClick={() => {
+                    close();
+                    void actions.setMe(person.id);
+                  }}
+                />
+              )}
+              {!isMe && !isClaude && (
+                <MenuItem
+                  icon={<Trash size={16} />}
+                  label="Remover pessoa"
+                  danger
+                  onClick={() => {
+                    close();
+                    remover();
+                  }}
+                />
+              )}
+            </>
+          )}
+        </RowMenu>
       )}
       <PopoverPanel popover={palette}>
         <ColorPalette
@@ -205,6 +229,7 @@ function PeopleModal({ onClose }: { onClose: () => void }) {
   const people = useStore((s) => s.people);
   const meId = useStore((s) => s.meId);
   const claudeId = useStore((s) => s.claudeId);
+  const comContas = useStore((s) => s.viewer) !== null;
   const [name, setName] = useState('');
   const add = async () => {
     if (!name.trim()) return;
@@ -214,11 +239,13 @@ function PeopleModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Pessoas" onClose={onClose}>
       <p className="modal__lead">
-        Quem pode ser atribuído nas colunas de pessoas. O tuesday roda na sua máquina — não há contas nem convites.
+        {comContas
+          ? 'Quem pode ser atribuído nas colunas de pessoas. Quem entra por um convite aparece aqui sozinho; quem participa de cada projeto se resolve em Quem participa.'
+          : 'Quem pode ser atribuído nas colunas de pessoas. O tuesday roda na sua máquina — não há contas nem convites.'}
       </p>
-      <div className="people-list">
+      <div className="team-list">
         {people.map((p) => (
-          <PersonRow key={p.id} person={p} isMe={p.id === meId} isClaude={p.id === claudeId} />
+          <PersonRow key={p.id} person={p} isMe={p.id === meId} isClaude={p.id === claudeId} comContas={comContas} />
         ))}
       </div>
       <form

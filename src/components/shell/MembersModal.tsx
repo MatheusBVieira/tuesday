@@ -1,6 +1,6 @@
 // Quem participa de um projeto e os links de convite.
-import { ChevronDown, Ellipsis, Link2, LogOut, UserMinus, UserPlus } from 'lucide-react';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ChevronDown, Link2, LogOut, UserMinus, UserPlus } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { ROLE_HINTS, ROLE_LABELS, grantableRoles, type ProjectRole } from '../../../shared/roles';
 import { authApi, type Invite, type Member } from '../../api/auth';
 import { errorText } from '../../api/client';
@@ -12,6 +12,7 @@ import { CopyField } from '../ui/CopyField';
 import { Menu, MenuItem, MenuTitle } from '../ui/Menu';
 import { Modal } from '../ui/Modal';
 import { PopoverPanel, usePopover } from '../ui/Popover';
+import { RowMenu } from '../ui/RowMenu';
 
 /** O papel à mostra e, no clique, um menu com o que cada um permite. */
 function RolePicker({
@@ -53,27 +54,6 @@ function RolePicker({
             />
           ))}
         </Menu>
-      </PopoverPanel>
-    </>
-  );
-}
-
-/** Menu "..." de uma linha da lista. */
-function RowMenu({ label, children }: { label: string; children: (close: () => void) => ReactNode }) {
-  const menu = usePopover({ placement: 'bottom-end' });
-  return (
-    <>
-      <button
-        ref={menu.refs.setReference}
-        {...menu.getReferenceProps({ onClick: () => menu.setOpen(!menu.open) })}
-        type="button"
-        className={cx('icon-btn icon-btn--sm team-row__menu', menu.open && 'is-open')}
-        aria-label={label}
-      >
-        <Ellipsis size={18} />
-      </button>
-      <PopoverPanel popover={menu}>
-        <Menu>{children(() => menu.setOpen(false))}</Menu>
       </PopoverPanel>
     </>
   );

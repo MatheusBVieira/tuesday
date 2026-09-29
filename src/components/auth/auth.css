@@ -1,146 +1,159 @@
+/* Entrada, criação de conta e convite: a coluna centrada das telas de login do monday. */
 .auth {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 40px;
   min-height: 100vh;
-  padding: 24px 16px;
-  background: var(--layout-bg, var(--bg-secondary, #f6f7fb));
+  padding: 48px 16px 24px;
+  background: var(--bg);
 }
 
-.auth__card {
+.auth__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: min(420px, 100%);
-  padding: 28px;
-  border-radius: var(--radius-lg, 12px);
-  background: var(--bg);
-  box-shadow: var(--shadow-md);
+  text-align: center;
 }
 
 .auth__brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 18px;
-  font-family: var(--font-display, inherit);
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.auth__lead {
-  margin: 0 0 16px;
+  margin-bottom: 28px;
+  font-family: var(--font-title);
+  font-size: 17px;
+  font-weight: 500;
   color: var(--text-secondary);
-  line-height: 1.45;
 }
 
-.auth__tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 18px;
-  padding: 3px;
-  border-radius: var(--radius-sm);
-  background: var(--grey-bg);
-}
-
-.auth__tabs button {
-  display: flex;
+.auth__chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex: 1;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  gap: 7px;
+  max-width: 100%;
+  margin-bottom: 14px;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: var(--grey-bg);
+  font-size: 13.5px;
   font-weight: 500;
 }
 
-.auth__tabs button.is-active {
-  background: var(--bg);
+.auth__chip-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.auth__title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 40px;
   color: var(--text);
-  box-shadow: var(--shadow-sm);
+  text-wrap: balance;
+}
+
+.auth__sub {
+  margin: 8px 0 18px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.5;
+  text-wrap: pretty;
 }
 
 .auth__form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.auth__field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.auth__field .input {
-  height: 38px;
-}
-
-.auth__hint {
-  font-size: 12px;
-  color: var(--text-disabled);
-}
-
-.auth__submit {
-  justify-content: center;
+  gap: 12px;
   width: 100%;
+  max-width: 360px;
+}
+
+.auth__input {
   height: 40px;
+  font-size: 16px;
+}
+
+/* O botão principal é maior que os do app — como o "Próximo" deles. */
+.auth__cta {
+  width: 100%;
+  max-width: 360px;
+  height: 48px;
+  margin-top: 4px;
+  font-size: 18px;
 }
 
 .auth__google {
-  justify-content: center;
+  gap: 10px;
   width: 100%;
+  max-width: 360px;
   height: 40px;
-  margin-top: 10px;
+  font-size: 16px;
 }
 
-.auth__link {
+.auth__or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  margin-top: 12px;
+  max-width: 360px;
+  margin: 16px 0;
   color: var(--text-secondary);
-  font-size: 13px;
-  text-decoration: underline;
+  font-size: 15px;
+}
+
+.auth__or::before,
+.auth__or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--layout-border);
 }
 
 .auth__error {
-  margin: 4px 0 0;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--danger-bg, #ffe9ec);
-  color: var(--danger, #d83a52);
-  font-size: 13px;
+  margin: 0;
+  color: var(--negative);
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
 }
 
-.auth-invite {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 18px;
-  padding: 12px;
-  border: 1px solid var(--layout-border);
-  border-radius: var(--radius-sm);
-}
-
-.auth-invite__dot {
-  width: 10px;
-  height: 10px;
-  margin-top: 5px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.auth-invite__role {
-  display: block;
-  margin-top: 2px;
+.auth__foot-line {
+  margin: 20px 0 0;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
-.auth__foot {
+.auth__foot-line strong {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.auth__link {
+  color: var(--link);
+  font-size: inherit;
+}
+
+.auth__link:hover {
+  text-decoration: underline;
+}
+
+.auth__note {
   margin: 0;
   color: var(--text-secondary);
   font-size: 12.5px;
+}
+
+@media (max-width: 480px) {
+  .auth__title {
+    font-size: 27px;
+    line-height: 34px;
+  }
 }

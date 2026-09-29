@@ -1,6 +1,6 @@
 // A sua conta: token do Claude, senha e — para quem administra a instalação — as contas das outras pessoas.
-import { Check, Ellipsis, KeyRound, LogOut, Search, Shield, Sparkles, Trash, UserCog, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Check, KeyRound, LogOut, Search, Shield, Sparkles, Trash, UserCog, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fold } from '../../../shared/values';
 import { authApi, type AccountUser, type ApiToken } from '../../api/auth';
 import { errorText } from '../../api/client';
@@ -8,29 +8,9 @@ import { cx } from '../../lib/format';
 import { actions, toast, useStore } from '../../store';
 import { Avatar } from '../ui/Avatar';
 import { CopyField } from '../ui/CopyField';
-import { Menu, MenuItem } from '../ui/Menu';
+import { MenuItem } from '../ui/Menu';
 import { Modal } from '../ui/Modal';
-import { PopoverPanel, usePopover } from '../ui/Popover';
-
-function RowMenu({ label, children }: { label: string; children: (close: () => void) => ReactNode }) {
-  const menu = usePopover({ placement: 'bottom-end' });
-  return (
-    <>
-      <button
-        ref={menu.refs.setReference}
-        {...menu.getReferenceProps({ onClick: () => menu.setOpen(!menu.open) })}
-        type="button"
-        className={cx('icon-btn icon-btn--sm team-row__menu', menu.open && 'is-open')}
-        aria-label={label}
-      >
-        <Ellipsis size={18} />
-      </button>
-      <PopoverPanel popover={menu}>
-        <Menu>{children(() => menu.setOpen(false))}</Menu>
-      </PopoverPanel>
-    </>
-  );
-}
+import { RowMenu } from '../ui/RowMenu';
 
 const quando = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : null);
 

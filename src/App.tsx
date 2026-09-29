@@ -34,12 +34,17 @@ function ConnectionError({ message }: { message: string }) {
 
 function ProjectEmpty() {
   const project = useStore((s) => s.projects.find((p) => p.id === s.projectId));
+  const comContas = useStore((s) => s.viewer) !== null;
   if (!project) {
     return (
       <div className="empty-state app-empty">
         <LayoutGrid size={48} strokeWidth={1.3} />
         <h3>Crie seu primeiro projeto</h3>
-        <p>Projetos agrupam quadros. Vincule cada um à pasta do código para o Claude saber onde trabalhar.</p>
+        <p>
+          {comContas
+            ? 'Projetos agrupam quadros. Crie o seu ou peça um link de convite para entrar num projeto que já existe.'
+            : 'Projetos agrupam quadros. Vincule cada um à pasta do código para o Claude saber onde trabalhar.'}
+        </p>
         <button type="button" className="btn btn--primary" onClick={() => actions.openModal({ kind: 'project' })}>
           <Plus size={16} /> Novo projeto
         </button>

@@ -490,20 +490,6 @@
   color: var(--text-secondary);
 }
 
-.people-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.person-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 6px 2px;
-  border-bottom: 1px solid var(--grid-line);
-}
-
 .person-row__avatar {
   border-radius: 50%;
 }
@@ -515,10 +501,6 @@
 .person-row__name {
   flex: 1;
   min-width: 0;
-}
-
-.person-row .tag {
-  margin-left: 0;
 }
 
 .tag--me {
@@ -1339,6 +1321,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   min-height: 32px;
   margin-bottom: 6px;
@@ -1375,6 +1358,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.team-block__actions .search-field .input {
+  width: 230px;
 }
 
 .team-block__hint {

@@ -16,6 +16,8 @@ export function TopBar() {
   const app = useStore((s) => s.app);
   const firstBoard = useStore((s) => s.boards[0]?.id ?? null);
   const menu = usePopover({ placement: 'bottom-end' });
+  // Com contas, o ícone do topo leva a quem participa do projeto — como o convite fica no topo do monday.
+  const equipe = viewer != null && projectId != null;
 
   return (
     <header className="topbar">
@@ -43,12 +45,12 @@ export function TopBar() {
             <Sparkles size={16} /> Claude
           </button>
         </Tooltip>
-        <Tooltip content="Pessoas">
+        <Tooltip content={equipe ? 'Quem participa do projeto' : 'Pessoas'}>
           <button
             type="button"
             className="icon-btn topbar__icon"
-            onClick={() => actions.openModal({ kind: 'people' })}
-            aria-label="Pessoas"
+            onClick={() => actions.openModal(equipe ? { kind: 'members', projectId } : { kind: 'people' })}
+            aria-label={equipe ? 'Quem participa do projeto' : 'Pessoas'}
           >
             <Users size={19} />
           </button>
@@ -66,7 +68,7 @@ export function TopBar() {
       </div>
       <PopoverPanel popover={menu}>
         <Menu>
-          <MenuTitle>{viewer?.name ?? me?.name ?? 'Você'}</MenuTitle>
+          <MenuTitle sub={viewer?.email}>{viewer?.name ?? me?.name ?? 'Você'}</MenuTitle>
           {viewer && (
             <MenuItem
               icon={<UserCog size={16} />}
